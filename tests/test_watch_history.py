@@ -167,3 +167,32 @@ def test_update_watch_history_entry_updates_existing_row():
     assert updated is True
     executed_sql = ' '.join(call.args[0] for call in cursor.execute.call_args_list if call.args)
     assert 'UPDATE watch_history' in executed_sql
+
+
+def test_get_resume_state_supports_tuple_rows():
+    connection = MagicMock()
+    cursor = MagicMock()
+    cursor.fetchone.return_value = ('123', 'default', 120, 20, 120, 0)
+    cursor.__enter__.return_value = cursor
+    cursor.__exit__.return_value = None
+    connection.cursor.return_value = cursor
+    connection.commit.return_value = None
+    connection.close.return_value = None
+
+    with patch('modules.watch_history.get_setting', side_effect=lambda key, fallback='': {
+        'fenlight.watch_history.enabled': 'true',
+        'fenlight.watch_history.server_ip': '127.0.0.1',
+        'fenlight.watch_history.port': '3306',
+        'fenlight.watch_history.username': 'root',
+        'fenlight.watch_history.password': '',
+        'fenlight.watch_history.database_name': 'fenlight',
+        'fenlight.watch_history.profile_name': 'default',
+    }.get(key, fallback)):
+        with patch('modules.watch_history.pymysql.connect', return_value=connection):
+            state = watch_history.get_resume_state('123', 'movie', 'default')
+
+    assert state is not None
+    assert state['tmdb_id'] == '123'
+    assert state['profile_name'] == 'default'
+    assert state['progress_seconds'] == 20
+    assert state['is_finished'] is False

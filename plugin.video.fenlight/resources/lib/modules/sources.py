@@ -637,7 +637,7 @@ class Sources():
 	def get_playback_percent(self):
 		if any((self.random, self.random_continual)): return 0.0
 		if settings.watch_history_enabled():
-			history_percent = get_resume_percent(str(self.tmdb_id), self.media_type, None)
+			history_percent = get_resume_percent(str(self.tmdb_id))
 			if not history_percent: return 0.0
 			percent = str(history_percent)
 		elif self.media_type == 'movie':

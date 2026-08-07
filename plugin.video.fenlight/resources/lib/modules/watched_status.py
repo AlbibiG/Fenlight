@@ -11,7 +11,9 @@ from modules.watch_history import save_watch_history_entry, get_resume_state, ge
 # from modules.kodi_utils import logger
 
 def get_database(watched_indicators=None):
-	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators or settings.watched_indicators()])
+	if watched_indicators is None:
+		watched_indicators = settings.watched_indicators()
+	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators])
 
 # def cache_watched_tvshow_status(function, status_type, watched_indicators=None):
 # 	watched_indicators = watched_indicators or settings.watched_indicators()
@@ -277,7 +279,7 @@ def set_bookmark(params):
 		watched_indicators = settings.watched_indicators()
 		progress_seconds = int(float(curr_time))
 		total_length_seconds = int(float(total_time))
-		save_watch_history_entry(tmdb_id=tmdb_id, media_type=media_type, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
+		save_watch_history_entry(tmdb_id=tmdb_id, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
 				total_length_seconds=total_length_seconds, is_finished=(progress_seconds / float(total_length_seconds) >= 0.9) if total_length_seconds else False,
 				season_number=season, episode_number=episode, show_title=params.get('show_title'), show_tmdb_id=params.get('show_tmdb_id'))
 		write_local_bookmark(media_type, tmdb_id, season, episode, resume_point, curr_time, title)
@@ -388,7 +390,7 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
-			mark_as_watched(tmdb_id=media_id, media_type=media_type, title=title, season_number=season, episode_number=episode, total_length_seconds=0)
+			mark_as_watched(tmdb_id=media_id, title=title, season_number=season, episode_number=episode, total_length_seconds=0)
 		elif action == 'mark_as_unwatched':
 			dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

@@ -46,7 +46,6 @@ def test_history_record_round_trip():
             watch_history.initialize_history_database()
             saved = watch_history.save_watch_history_entry(
                 tmdb_id='123',
-                media_type='movie',
                 title='Example Movie',
                 start_time=10,
                 end_time=120,
@@ -59,7 +58,7 @@ def test_history_record_round_trip():
                 show_title=None,
                 show_tmdb_id=None,
             )
-            resumed = watch_history.get_resume_state('123', 'movie', 'default')
+            resumed = watch_history.get_resume_state('123', 'default')
 
     assert saved is True
     assert resumed is not None
@@ -83,8 +82,8 @@ def test_auth_failure_does_not_raise():
         with patch('modules.watch_history.pymysql.connect', side_effect=OperationalError(1698, 'Access denied')):
             assert watch_history.initialize_history_database() is False
             assert watch_history.reconfigure_history_database() is False
-            assert watch_history.save_watch_history_entry('123', 'movie', 'Example Movie') is False
-            assert watch_history.get_resume_state('123', 'movie', 'default') is None
+            assert watch_history.save_watch_history_entry('123', 'Example Movie') is False
+            assert watch_history.get_resume_state('123', 'default') is None
 
 
 def test_tuple_based_column_rows_are_supported():
@@ -189,7 +188,7 @@ def test_get_resume_state_supports_tuple_rows():
         'fenlight.watch_history.profile_name': 'default',
     }.get(key, fallback)):
         with patch('modules.watch_history.pymysql.connect', return_value=connection):
-            state = watch_history.get_resume_state('123', 'movie', 'default')
+            state = watch_history.get_resume_state('123', 'default')
 
     assert state is not None
     assert state['tmdb_id'] == '123'

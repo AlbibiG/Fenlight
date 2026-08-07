@@ -46,7 +46,7 @@ def auto_resume(media_type):
 	return get_setting('fenlight.playback.auto_resume', 'true') == 'true'
 
 def watch_history_enabled():
-	return get_setting('fenlight.watch_history.enabled', 'false') == 'true'
+	return get_setting('fenlight.watch_history.enabled', 'true') == 'true'
 
 def watch_history_server_ip():
 	return get_setting('fenlight.watch_history.server_ip', '127.0.0.1')

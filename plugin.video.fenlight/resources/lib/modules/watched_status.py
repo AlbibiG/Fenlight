@@ -112,6 +112,12 @@ def watched_info_movie(watched_db=None):
 	except: return {}
 
 def get_watched_status_movie(watched_info, media_id):
+	try:
+		if settings.watch_history_enabled():
+			state = get_resume_state(str(media_id))
+			if not state: return 0
+			return 1 if state.get('is_finished') else 0
+	except: pass
 	if not watched_info: return 0
 	try:
 		watched = 1 if media_id in watched_info else 0
@@ -127,6 +133,12 @@ def get_bookmarks_movie(watched_db=None):
 	return info
 
 def get_progress_status_movie(progress_info, media_id):
+	try:
+		if settings.watch_history_enabled():
+			state = get_resume_state(str(media_id))
+			if not state: return None
+			return str(round(float(state.get('progress_seconds') / state.get('total_length_seconds') * 100, 1))) if state.get('total_length_seconds') > 0 else None
+	except: pass
 	try: percent = str(round(float(progress_info[media_id]['resume_point'])))
 	except: percent = None
 	return percent

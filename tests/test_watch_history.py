@@ -82,3 +82,22 @@ def test_auth_failure_does_not_raise():
             assert watch_history.reconfigure_history_database() is False
             assert watch_history.save_watch_history_entry('123', 'movie', 'Example Movie') is False
             assert watch_history.get_resume_state('123', 'movie', 'default') is None
+
+
+def test_tuple_based_column_rows_are_supported():
+    class FakeCursor(object):
+        def __init__(self):
+            self._rows = [('tmdb_id',), ('media_type',)]
+
+        def execute(self, *args, **kwargs):
+            return None
+
+        def fetchall(self):
+            return self._rows
+
+        def fetchone(self):
+            return ('varchar(255)',) if self._rows else None
+
+    cursor = FakeCursor()
+    assert watch_history._get_column_names(cursor) == {'tmdb_id', 'media_type'}
+    assert watch_history._get_column_type(cursor, 'tmdb_id') == 'varchar(255)'

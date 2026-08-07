@@ -505,7 +505,7 @@
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
                           <property name="setting_label">MariaDB Password</property>
-                          <property name="setting_type">string</property>
+                          <property name="setting_type">password</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.password)]</property>
                           <property name="setting_description">The password used to connect to your MariaDB server</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.password)</onclick>

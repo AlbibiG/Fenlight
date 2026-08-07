@@ -30,10 +30,16 @@ class SetAddonConstants:
 class DatabaseMaintenance:
 	def run(self):
 		logger('Fen Light', 'DatabaseMaintenance Service Starting')
-		from caches.base_cache import make_databases
-		from modules.watch_history import initialize_history_database
-		make_databases()
-		initialize_history_database()
+		try:
+			from caches.base_cache import make_databases
+			from modules.watch_history import initialize_history_database
+			make_databases()
+			initialize_history_database()
+		except Exception as exc:
+			import traceback
+			logger('Fen Light', 'DatabaseMaintenance Service Failed: %s' % exc)
+			logger('Fen Light', 'DatabaseMaintenance Service Traceback: %s' % traceback.format_exc())
+			return False
 		return logger('Fen Light', 'DatabaseMaintenance Service Finished')
 
 class SyncSettings:

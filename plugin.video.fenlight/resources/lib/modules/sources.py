@@ -636,14 +636,9 @@ class Sources():
 
 	def get_playback_percent(self):
 		if any((self.random, self.random_continual)): return 0.0
-		if settings.watch_history_enabled():
-			history_percent = get_resume_percent(str(self.tmdb_id))
-			if not history_percent: return 0.0
-			percent = str(history_percent)
-		elif self.media_type == 'movie':
-			percent = watched_status.get_progress_status_movie(watched_status.get_bookmarks_movie(watched_status.get_database(0)), str(self.tmdb_id))
-		else:
-			percent = watched_status.get_progress_status_episode(watched_status.get_bookmarks_episode(self.tmdb_id, self.season, watched_status.get_database(0)), self.episode)
+		history_percent = get_resume_percent(str(self.tmdb_id))
+		if not history_percent: return 0.0
+		percent = str(history_percent)
 		if not percent: return 0.0
 		action = self.get_resume_status(percent)
 		if action == 'cancel': return None

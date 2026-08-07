@@ -3,7 +3,6 @@ from datetime import datetime
 from threading import Thread
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
 from caches.base_cache import connect_database, database
-from caches.settings_cache import get_setting
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
@@ -54,7 +53,7 @@ class SQLDatabaseWrapper:
 
 
 def get_database(watched_indicators=None):
-	if get_setting('fenlight.watch_history.enabled') == 'true':
+	if settings.watch_history_enabled() == 'true':
 		try:
 			from modules.watch_history import connect
 			return SQLDatabaseWrapper(connect())
@@ -65,11 +64,11 @@ def get_database(watched_indicators=None):
 
 def is_sql_enabled():
 	"""Check if watch_history SQL mode is enabled"""
-	return get_setting('fenlight.watch_history.enabled') == 'true'
-
+	return settings.watch_history_enabled() == 'true'
+	
 def get_profile_name():
 	"""Get the profile name from settings for SQL mode"""
-	return get_setting('fenlight.watch_history.profile_name', 'default') or 'default'
+	return settings.watch_history_profile_name()
 
 def get_hidden_progress_items(watched_indicators):
 	try:

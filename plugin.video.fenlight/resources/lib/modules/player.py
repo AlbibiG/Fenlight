@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import xbmc
 import json
+import time
 from threading import Thread
 from apis.trakt_api import make_trakt_slug
 from caches.settings_cache import get_setting
-from modules import kodi_utils as ku, settings as st, watched_status as ws
+from modules import kodi_utils as ku, settings as st, watch_history as wh, watched_status as ws
 # logger = ku.logger
 
 class FenLightPlayer(xbmc.Player):
@@ -75,6 +76,7 @@ class FenLightPlayer(xbmc.Player):
 				total_check_time += 0.10
 			ku.hide_busy_dialog()
 			ku.sleep(1000)
+			self.create_watch_history_entry()
 			while self.isPlayingVideo():
 				try:
 					try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
@@ -93,9 +95,11 @@ class FenLightPlayer(xbmc.Player):
 				except: pass
 			ku.hide_busy_dialog()
 			if not self.media_marked: self.media_watched_marker()
+			self.finalize_watch_history_entry()
 			self.clear_playback_properties()
 			self.clear_playing_item()
 		except:
+			self.finalize_watch_history_entry()
 			ku.hide_busy_dialog()
 			self.sources_object.playback_successful = False
 			self.sources_object.cancel_all_playback = True
@@ -166,6 +170,40 @@ class FenLightPlayer(xbmc.Player):
 		try: function(params)
 		except: pass
 
+	def create_watch_history_entry(self):
+		if self.history_entry_id is not None: return
+		try:
+			self.history_entry_id = wh.create_watch_history_entry(
+				tmdb_id=self.tmdb_id,
+				media_type=self.media_type,
+				title=self.title,
+				start_time=time.time(),
+				end_time=None,
+				progress_seconds=0,
+				total_length_seconds=0,
+				is_finished=False,
+				season_number=self.season,
+				episode_number=self.episode,
+			)
+		except:
+			self.history_entry_id = None
+
+	def finalize_watch_history_entry(self):
+		if self.history_entry_id is None: return
+		try:
+			curr_time = int(float(getattr(self, 'curr_time', 0) or 0))
+			total_time = int(float(getattr(self, 'total_time', 0) or 0))
+			current_point = float(getattr(self, 'current_point', 0) or 0)
+			wh.update_watch_history_entry(
+				self.history_entry_id,
+				end_time=time.time(),
+				progress_seconds=curr_time,
+				total_length_seconds=total_time,
+				is_finished=current_point >= 90,
+			)
+		except: pass
+		self.history_entry_id = None
+
 	def run_next_ep(self):
 		from modules.episode_tools import EpisodeTools
 		if not self.media_marked: self.media_watched_marker(force_watched=True)
@@ -208,6 +246,7 @@ class FenLightPlayer(xbmc.Player):
 		self.url = url
 		self.sources_object = obj
 		self.is_generic = self.sources_object == 'video'
+		self.history_entry_id = None
 		if not self.is_generic:
 			self.meta = self.sources_object.meta
 			self.meta_get, self.kodi_monitor, self.playback_percent = self.meta.get, ku.kodi_monitor(), self.sources_object.playback_percent or 0.0

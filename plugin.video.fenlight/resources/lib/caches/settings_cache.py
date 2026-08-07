@@ -185,13 +185,13 @@ def restore_setting_default(params):
 
 
 def reconfigure_watch_history_database(params=None):
-	if not kodi_utils.confirm_dialog(text='Reconfigure watch-history database table?', ok_label='Yes', cancel_label='No', default_control=11):
+	if not kodi_utils.confirm_dialog(text='Reconfigure progress database table?', ok_label='Yes', cancel_label='No', default_control=11):
 		return
 	from modules.watch_history import reconfigure_history_database
 	if reconfigure_history_database():
-		kodi_utils.notification('Watch-history table reconfigured successfully')
+		kodi_utils.notification('Progress table reconfigured successfully')
 	else:
-		kodi_utils.notification('Watch-history table reconfiguration failed')
+		kodi_utils.notification('Progress table reconfiguration failed')
 
 def default_setting_values(setting_id):
 	d_settings = default_settings()

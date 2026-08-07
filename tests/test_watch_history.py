@@ -65,6 +65,9 @@ def test_history_record_round_trip():
     assert resumed is not None
     assert resumed['progress_seconds'] == 20
     assert resumed['is_finished'] is False
+    executed_sql = ' '.join(call.args[0] for call in cursor.execute.call_args_list if call.args)
+    assert 'watch_history' not in executed_sql
+    assert 'progress' in executed_sql
 
 
 def test_auth_failure_does_not_raise():
@@ -101,3 +104,66 @@ def test_tuple_based_column_rows_are_supported():
     cursor = FakeCursor()
     assert watch_history._get_column_names(cursor) == {'tmdb_id', 'media_type'}
     assert watch_history._get_column_type(cursor, 'tmdb_id') == 'varchar(255)'
+
+
+def test_create_watch_history_entry_inserts_history_row():
+    connection = MagicMock()
+    cursor = MagicMock()
+    cursor.lastrowid = 7
+    cursor.__enter__.return_value = cursor
+    cursor.__exit__.return_value = None
+    connection.cursor.return_value = cursor
+    connection.commit.return_value = None
+    connection.close.return_value = None
+
+    with patch('modules.watch_history.get_setting', side_effect=lambda key, fallback='': {
+        'fenlight.watch_history.enabled': 'true',
+        'fenlight.watch_history.server_ip': '127.0.0.1',
+        'fenlight.watch_history.port': '3306',
+        'fenlight.watch_history.username': 'root',
+        'fenlight.watch_history.password': '',
+        'fenlight.watch_history.database_name': 'fenlight',
+        'fenlight.watch_history.profile_name': 'default',
+    }.get(key, fallback)):
+        with patch('modules.watch_history.pymysql.connect', return_value=connection):
+            history_id = watch_history.create_watch_history_entry(
+                tmdb_id='123',
+                media_type='movie',
+                title='Example Movie',
+                start_time=10,
+            )
+
+    assert history_id == 7
+    executed_sql = ' '.join(call.args[0] for call in cursor.execute.call_args_list if call.args)
+    assert 'INSERT INTO watch_history' in executed_sql
+
+
+def test_update_watch_history_entry_updates_existing_row():
+    connection = MagicMock()
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.__exit__.return_value = None
+    connection.cursor.return_value = cursor
+    connection.commit.return_value = None
+    connection.close.return_value = None
+
+    with patch('modules.watch_history.get_setting', side_effect=lambda key, fallback='': {
+        'fenlight.watch_history.enabled': 'true',
+        'fenlight.watch_history.server_ip': '127.0.0.1',
+        'fenlight.watch_history.port': '3306',
+        'fenlight.watch_history.username': 'root',
+        'fenlight.watch_history.password': '',
+        'fenlight.watch_history.database_name': 'fenlight',
+    }.get(key, fallback)):
+        with patch('modules.watch_history.pymysql.connect', return_value=connection):
+            updated = watch_history.update_watch_history_entry(
+                history_id=7,
+                end_time=120,
+                progress_seconds=118,
+                total_length_seconds=120,
+                is_finished=True,
+            )
+
+    assert updated is True
+    executed_sql = ' '.join(call.args[0] for call in cursor.execute.call_args_list if call.args)
+    assert 'UPDATE watch_history' in executed_sql

@@ -320,8 +320,8 @@ def mark_movie(params):
 	if from_playback: refresh = False
 	tmdb_id, title = params.get('tmdb_id'), params.get('title')
 	watched_indicators = settings.watched_indicators()
-	if watched_indicators == 1:
-		if from_playback == 'true' and trakt_official_status(media_type) == False: sleep(1000)
+	if not is_sql_enabled() and watched_indicators == 1:
+		if from_playback and trakt_official_status(media_type) == False: sleep(1000)
 		elif not trakt_watched_status_mark(action, 'movies', tmdb_id): return notification('Error')
 		clear_trakt_collection_watchlist_data('watchlist', media_type)
 	watched_status_mark(watched_indicators, media_type, tmdb_id, action, title=title)
@@ -334,7 +334,7 @@ def mark_tvshow(params):
 	watched_indicators = settings.watched_indicators()
 	progress_backround = kodi_progress_background()
 	progress_backround.create('[B]Please Wait..[/B]', '')
-	if watched_indicators == 1:
+	if not is_sql_enabled() and watched_indicators == 1:
 		if not trakt_watched_status_mark(action, 'shows', tmdb_id, tvdb_id): return notification('Error')
 		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
 	current_date = get_datetime()
@@ -370,7 +370,7 @@ def mark_season(params):
 	except: tvdb_id = 0
 	watched_indicators = settings.watched_indicators()
 	heading = '[B]Mark Watched %s[/B]' if action == 'mark_as_watched' else '[B]Mark Unwatched %s[/B]'
-	if watched_indicators == 1:
+	if not is_sql_enabled() and watched_indicators == 1:
 		if not trakt_watched_status_mark(action, 'season', tmdb_id, tvdb_id, season): return notification('Error')
 		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
 	progress_backround = kodi_progress_background()
@@ -401,8 +401,8 @@ def mark_episode(params):
 	try: tvdb_id = int(params.get('tvdb_id', '0'))
 	except: tvdb_id = 0
 	watched_indicators = settings.watched_indicators()
-	if watched_indicators == 1:
-		if from_playback == 'true' and trakt_official_status(media_type) == False: sleep(1000)
+	if not is_sql_enabled() and watched_indicators == 1:
+		if from_playback and trakt_official_status(media_type) == False: sleep(1000)
 		elif not trakt_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode): return notification('Error')
 		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
 	watched_status_mark(watched_indicators, media_type, tmdb_id, action, season, episode, title)

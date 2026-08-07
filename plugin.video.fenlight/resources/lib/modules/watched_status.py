@@ -15,6 +15,7 @@ class SQLDatabaseWrapper:
 	"""Wrapper for SQL database connection to provide compatible interface"""
 	def __init__(self, connection):
 		self.connection = connection
+		self.is_sql = True
 	
 	def _convert_query(self, query):
 		"""Convert SQLite syntax to MariaDB syntax"""
@@ -62,6 +63,14 @@ def get_database(watched_indicators=None):
 			logger('Failed to connect to SQL watch history database: %s' % exc)
 	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators or settings.watched_indicators()])
 
+def is_sql_enabled():
+	"""Check if watch_history SQL mode is enabled"""
+	return get_setting('fenlight.watch_history.enabled') == 'true'
+
+def get_profile_name():
+	"""Get the profile name from settings for SQL mode"""
+	return get_setting('fenlight.watch_history.profile_name', 'default') or 'default'
+
 def get_hidden_progress_items(watched_indicators):
 	try:
 		if watched_indicators == 0:
@@ -86,7 +95,10 @@ def hide_unhide_progress_items(params):
 	if action == 'drop': current_items.append(media_id)
 	else: current_items.remove(media_id)
 	watched_db = get_database()
-	watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items),))
+	if is_sql_enabled():
+		watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), get_profile_name()))
+	else:
+		watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items),))
 	if refresh: kodi_refresh()
 
 def get_last_played_value(watched_indicators):
@@ -296,9 +308,12 @@ def set_bookmark(params):
 			erase_bookmark(media_type, tmdb_id, season, episode)
 			last_played = get_last_played_value(watched_indicators)
 			dbcon = get_database(watched_indicators)
-			if 
-			dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-						(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
+			if is_sql_enabled():
+				dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, get_profile_name()))
+			else:
+				dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
 		refresh_container(refresh)
 	except: pass
 
@@ -402,9 +417,15 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
-			dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
+			if is_sql_enabled():
+				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, get_profile_name()))
+			else:
+				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
-			dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
+			if is_sql_enabled():
+				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ? and profile_name = ?)', (media_type, media_id, season, episode, get_profile_name()))
+			else:
+				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
 		# if media_type == 'episode': clear_cache_watched_tvshow_status()
 	except: notification('Error')
@@ -413,9 +434,19 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 	try:
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
-			dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
+			if is_sql_enabled():
+				profile = get_profile_name()
+				modified_list = [(i[0], i[1], i[2], i[3], i[4], i[5], profile) for i in insert_list]
+				dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', modified_list)
+			else:
+				dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
 		elif action == 'mark_as_unwatched':
-			dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', insert_list)
+			if is_sql_enabled():
+				profile = get_profile_name()
+				modified_list = [(i[0], i[1], i[2], i[3], profile) for i in insert_list]
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ? and profile_name = ?)', modified_list)
+			else:
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
 		# clear_cache_watched_tvshow_status()
 	except: notification('Error')

@@ -7,7 +7,7 @@ from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
-from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched
+from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched, get_finished_episode_count
 # from modules.kodi_utils import logger
 
 def get_database(watched_indicators=None):
@@ -153,6 +153,17 @@ def watched_info_tvshow(watched_db=None):
 
 def get_watched_status_tvshow(watched_info, aired_eps):
 	if not watched_info: return 0, 0, aired_eps
+	try:
+		if settings.watch_history_enabled():
+			media_id = watched_info.get('media_id')
+			if not media_id: return 0, 0, aired_eps
+			if not aired_eps: return 0, 0, aired_eps
+			watched = min(get_finished_episode_count(str(media_id)), aired_eps)
+			unwatched = aired_eps - watched
+			if watched >= aired_eps: playcount = 1
+			else: playcount = 0
+			return playcount, watched, unwatched
+	except: pass
 	try:
 		watched = min(watched_info['total_played'], aired_eps)
 		unwatched = aired_eps - watched

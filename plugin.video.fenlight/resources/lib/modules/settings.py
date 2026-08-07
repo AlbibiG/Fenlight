@@ -42,6 +42,30 @@ def authorized_debrid_check(debrid_service):
 def playback_settings():
 	return (int(get_setting('fenlight.playback.watched_percent', '90')), int(get_setting('fenlight.playback.resume_percent', '5')))
 
+def auto_resume(media_type):
+	return get_setting('fenlight.playback.auto_resume', 'true') == 'true'
+
+def watch_history_enabled():
+	return get_setting('fenlight.watch_history.enabled', 'true') == 'true'
+
+def watch_history_server_ip():
+	return get_setting('fenlight.watch_history.server_ip', '127.0.0.1')
+
+def watch_history_port():
+	return int(get_setting('fenlight.watch_history.port', '3306'))
+
+def watch_history_username():
+	return get_setting('fenlight.watch_history.username', 'root')
+
+def watch_history_password():
+	return get_setting('fenlight.watch_history.password', '')
+
+def watch_history_database_name():
+	return get_setting('fenlight.watch_history.database_name', 'fenlight')
+
+def watch_history_profile_name():
+	return get_setting('fenlight.watch_history.profile_name', 'default')
+
 def limit_resolve():
 	return get_setting('fenlight.playback.limit_resolve', 'false') == 'true'
 

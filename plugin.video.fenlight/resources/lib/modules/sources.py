@@ -8,6 +8,7 @@ from caches.settings_cache import get_setting
 from scrapers import external, folders
 from modules import debrid, kodi_utils, settings, metadata, watched_status
 from modules.player import FenLightPlayer
+from modules.watch_history import get_resume_percent
 from modules.source_utils import get_cache_expiry, make_alias_dict
 from modules.utils import clean_file_name, string_to_float, safe_string, remove_accents, get_datetime, append_module_to_syspath, manual_function_import
 # logger = kodi_utils.logger
@@ -637,7 +638,12 @@ class Sources():
 		if self.media_type == 'movie': percent = watched_status.get_progress_status_movie(watched_status.get_bookmarks_movie(), str(self.tmdb_id))
 		elif any((self.random, self.random_continual)): return 0.0
 		else: percent = watched_status.get_progress_status_episode(watched_status.get_bookmarks_episode(self.tmdb_id, self.season), self.episode)
-		if not percent: return 0.0
+		if not percent:
+			history_percent = get_resume_percent(str(self.tmdb_id), self.media_type, None)
+			if history_percent:
+				percent = str(history_percent)
+			else:
+				return 0.0
 		action = self.get_resume_status(percent)
 		if action == 'cancel': return None
 		if action == 'start_over':

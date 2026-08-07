@@ -7,6 +7,7 @@ from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
+from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched
 # from modules.kodi_utils import logger
 
 def get_database(watched_indicators=None):
@@ -260,6 +261,11 @@ def set_bookmark(params):
 		adjusted_current_time = float(curr_time) - 5
 		resume_point = round(adjusted_current_time/float(total_time)*100,1)
 		watched_indicators = settings.watched_indicators()
+		progress_seconds = int(float(curr_time))
+		total_length_seconds = int(float(total_time))
+		save_watch_history_entry(tmdb_id=tmdb_id, media_type=media_type, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
+				total_length_seconds=total_length_seconds, is_finished=(progress_seconds / float(total_length_seconds) >= 0.9) if total_length_seconds else False,
+				season_number=season, episode_number=episode, show_title=params.get('show_title'), show_tmdb_id=params.get('show_tmdb_id'))
 		if watched_indicators == 1:
 			if trakt_official_status(media_type) == False: return
 			else: trakt_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_trakt=True)
@@ -373,6 +379,7 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
+			mark_as_watched(tmdb_id=media_id, media_type=media_type, title=title, season_number=season, episode_number=episode, total_length_seconds=0)
 		elif action == 'mark_as_unwatched':
 			dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

@@ -204,6 +204,15 @@ def default_settings():
 {'setting_id': 'update.location', 'setting_type': 'string', 'setting_default': 'FenlightAnonyMouse.github.io'},
 #==================== Watched Indicators
 {'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt'}},
+#==================== Watch History Database
+{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},
+{'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535'},
+{'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root'},
+{'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': ''},
+{'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight'},
+{'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
+{'setting_id': 'playback.auto_resume', 'setting_type': 'boolean', 'setting_default': 'true'},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
 {'setting_id': 'trakt.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},

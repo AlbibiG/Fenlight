@@ -53,7 +53,7 @@ class SQLDatabaseWrapper:
 
 
 def get_database(watched_indicators=None):
-	if settings.watch_history_enabled() == 'true':
+	if settings.watch_history_enabled():
 		try:
 			from modules.watch_history import connect
 			return SQLDatabaseWrapper(connect())
@@ -63,11 +63,9 @@ def get_database(watched_indicators=None):
 	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators or settings.watched_indicators()])
 
 def is_sql_enabled():
-	"""Check if watch_history SQL mode is enabled"""
-	return settings.watch_history_enabled() == 'true'
+	return settings.watch_history_enabled()
 	
 def get_profile_name():
-	"""Get the profile name from settings for SQL mode"""
 	return settings.watch_history_profile_name()
 
 def get_hidden_progress_items(watched_indicators):

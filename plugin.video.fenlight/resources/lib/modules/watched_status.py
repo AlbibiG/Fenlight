@@ -3,36 +3,64 @@ from datetime import datetime
 from threading import Thread
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
 from caches.base_cache import connect_database, database
+from caches.settings_cache import get_setting
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
-from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched
 # from modules.kodi_utils import logger
 
+
+class SQLDatabaseWrapper:
+	"""Wrapper for SQL database connection to provide compatible interface"""
+	def __init__(self, connection):
+		self.connection = connection
+	
+	def _convert_query(self, query):
+		"""Convert SQLite syntax to MariaDB syntax"""
+		# Replace SQLite placeholders (?) with MariaDB placeholders (%s)
+		query = query.replace('?', '%s')
+		# Replace SQLite INSERT OR REPLACE with MariaDB REPLACE INTO
+		query = query.replace('INSERT OR REPLACE', 'REPLACE')
+		# Replace SQLite INSERT OR IGNORE with MariaDB INSERT IGNORE
+		query = query.replace('INSERT OR IGNORE', 'INSERT IGNORE')
+		return query
+	
+	def execute(self, query, params=None):
+		"""Execute query and return cursor with results"""
+		try:
+			query = self._convert_query(query)
+			cursor = self.connection.cursor()
+			if params:
+				cursor.execute(query, params)
+			else:
+				cursor.execute(query)
+			self.connection.commit()
+			return cursor
+		except Exception as exc:
+			raise
+	
+	def executemany(self, query, params_list):
+		"""Execute query multiple times with different parameters"""
+		try:
+			query = self._convert_query(query)
+			cursor = self.connection.cursor()
+			cursor.executemany(query, params_list)
+			self.connection.commit()
+			cursor.close()
+		except Exception as exc:
+			raise
+
+
 def get_database(watched_indicators=None):
+	if get_setting('fenlight.watch_history.enabled') == 'true':
+		try:
+			from modules.watch_history import connect
+			return SQLDatabaseWrapper(connect())
+		except Exception as exc:
+			from modules.kodi_utils import logger
+			logger('Failed to connect to SQL watch history database: %s' % exc)
 	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators or settings.watched_indicators()])
-
-# def cache_watched_tvshow_status(function, status_type, watched_indicators=None):
-# 	watched_indicators = watched_indicators or settings.watched_indicators()
-# 	dbcon = get_database(watched_indicators)
-# 	cache = dbcon.execute('SELECT media_id, status FROM watched_status WHERE db_type = ?', (status_type,)).fetchone()
-# 	if cache is not None:
-# 		expiration, result = cache
-# 		if int(expiration) > get_timestamp(): return eval(result)
-# 		clear_cache_watched_tvshow_status(watched_indicators, (status_type,))
-# 	result = function(status_type)
-# 	dbcon.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', (status_type, get_timestamp(12), repr(result)))
-# 	return result or []
-
-# def clear_cache_watched_tvshow_status(watched_indicators=None, status_types=('watched', 'progress')):
-# 	try:
-# 		watched_indicators = watched_indicators or settings.watched_indicators()
-# 		dbcon = get_database()
-# 		for status in status_types: dbcon.execute('DELETE FROM watched_status WHERE db_type = ?', (status,))
-# 		dbcon.execute('VACUUM')
-# 		return True
-# 	except: return False
 
 def get_hidden_progress_items(watched_indicators):
 	try:
@@ -261,11 +289,6 @@ def set_bookmark(params):
 		adjusted_current_time = float(curr_time) - 5
 		resume_point = round(adjusted_current_time/float(total_time)*100,1)
 		watched_indicators = settings.watched_indicators()
-		progress_seconds = int(float(curr_time))
-		total_length_seconds = int(float(total_time))
-		save_watch_history_entry(tmdb_id=tmdb_id, media_type=media_type, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
-				total_length_seconds=total_length_seconds, is_finished=(progress_seconds / float(total_length_seconds) >= 0.9) if total_length_seconds else False,
-				season_number=season, episode_number=episode, show_title=params.get('show_title'), show_tmdb_id=params.get('show_tmdb_id'))
 		if watched_indicators == 1:
 			if trakt_official_status(media_type) == False: return
 			else: trakt_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_trakt=True)
@@ -273,6 +296,7 @@ def set_bookmark(params):
 			erase_bookmark(media_type, tmdb_id, season, episode)
 			last_played = get_last_played_value(watched_indicators)
 			dbcon = get_database(watched_indicators)
+			if 
 			dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 						(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
 		refresh_container(refresh)
@@ -379,7 +403,6 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
-			mark_as_watched(tmdb_id=media_id, media_type=media_type, title=title, season_number=season, episode_number=episode, total_length_seconds=0)
 		elif action == 'mark_as_unwatched':
 			dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

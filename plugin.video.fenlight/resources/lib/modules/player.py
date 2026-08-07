@@ -116,6 +116,8 @@ class FenLightPlayer(xbmc.Player):
 		else:
 			self.tmdb_id, self.imdb_id, self.tvdb_id = self.meta_get('tmdb_id', ''), self.meta_get('imdb_id', ''), self.meta_get('tvdb_id', '')
 			self.media_type, self.title, self.year = self.meta_get('media_type'), self.meta_get('title'), self.meta_get('year')
+			self.show_title = self.title if self.media_type == 'episode' else None
+			self.logged_title = self.meta_get('ep_name') if self.media_type == 'episode' else self.title
 			self.season, self.episode = self.meta_get('season', ''), self.meta_get('episode', '')
 			self.auto_resume = st.auto_resume(self.media_type)
 			poster = self.meta_get('poster') or ku.get_icon('box_office')
@@ -155,14 +157,15 @@ class FenLightPlayer(xbmc.Player):
 		try:
 			if self.current_point >= 90 or force_watched:
 				watched_function = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
-				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'season': self.season, 'episode': self.episode,
-									'tvdb_id': self.tvdb_id, 'from_playback': 'true'}
+				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.logged_title, 'year': self.year, 'season': self.season, 'episode': self.episode,
+									'tvdb_id': self.tvdb_id, 'from_playback': 'true', 'show_title': self.show_title, 'show_tmdb_id': self.tmdb_id}
 				Thread(target=self.run_media_progress, args=(watched_function, watched_params)).start()
 			else:
 				ku.clear_property('fenlight.random_episode_history')
 				if self.current_point >= 5:
 					progress_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
-									'title': self.title, 'season': self.season, 'episode': self.episode, 'from_playback': 'true'}
+									'title': self.logged_title, 'season': self.season, 'episode': self.episode, 'from_playback': 'true',
+									'show_title': self.show_title, 'show_tmdb_id': self.tmdb_id}
 					Thread(target=self.run_media_progress, args=(ws.set_bookmark, progress_params)).start()
 		except: pass
 
@@ -176,7 +179,7 @@ class FenLightPlayer(xbmc.Player):
 			self.history_entry_id = wh.create_watch_history_entry(
 				tmdb_id=self.tmdb_id,
 				media_type=self.media_type,
-				title=self.title,
+				title=self.logged_title,
 				start_time=time.time(),
 				end_time=None,
 				progress_seconds=0,
@@ -184,6 +187,8 @@ class FenLightPlayer(xbmc.Player):
 				is_finished=False,
 				season_number=self.season,
 				episode_number=self.episode,
+				show_title=self.show_title,
+				show_tmdb_id=self.tmdb_id if self.media_type == 'episode' else None,
 			)
 		except:
 			self.history_entry_id = None

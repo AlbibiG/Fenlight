@@ -526,6 +526,14 @@
                           <property name="setting_description">The profile name to associate with the saved watch-history entries</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.profile_name)</onclick>
                       </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10)</visible>
+                          <property name="setting_label">Reconfigure Watch History Table</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">Reconfigure</property>
+                          <property name="setting_description">Create the watch-history table if missing, then verify its schema, columns, and field types</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.reconfigure_watch_history_database)</onclick>
+                      </item>
         <!-- Manage Addon Updates -->
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>

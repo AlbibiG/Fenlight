@@ -183,6 +183,16 @@ def restore_setting_default(params):
 	except:
 		if not silent: kodi_utils.ok_dialog(text='Error restoring default setting')
 
+
+def reconfigure_watch_history_database(params=None):
+	if not kodi_utils.confirm_dialog(text='Reconfigure watch-history database table?', ok_label='Yes', cancel_label='No', default_control=11):
+		return
+	from modules.watch_history import reconfigure_history_database
+	if reconfigure_history_database():
+		kodi_utils.notification('Watch-history table reconfigured successfully')
+	else:
+		kodi_utils.notification('Watch-history table reconfiguration failed')
+
 def default_setting_values(setting_id):
 	d_settings = default_settings()
 	return next((i for i in d_settings if i['setting_id'] == setting_id), None)
@@ -212,6 +222,7 @@ def default_settings():
 {'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': ''},
 {'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight'},
 {'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
+{'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': ''},
 {'setting_id': 'playback.auto_resume', 'setting_type': 'boolean', 'setting_default': 'true'},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},

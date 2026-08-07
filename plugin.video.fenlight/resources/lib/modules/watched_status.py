@@ -7,13 +7,11 @@ from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
-from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched, get_finished_episode_count
+from modules.watch_history import save_watch_history_entry, get_resume_state, get_resume_percent, mark_as_watched
 # from modules.kodi_utils import logger
 
 def get_database(watched_indicators=None):
-	if watched_indicators is None:
-		watched_indicators = settings.watched_indicators()
-	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators])
+	return connect_database({0: 'watched_db', 1: 'trakt_db'}[watched_indicators or settings.watched_indicators()])
 
 # def cache_watched_tvshow_status(function, status_type, watched_indicators=None):
 # 	watched_indicators = watched_indicators or settings.watched_indicators()
@@ -112,12 +110,6 @@ def watched_info_movie(watched_db=None):
 	except: return {}
 
 def get_watched_status_movie(watched_info, media_id):
-	try:
-		if settings.watch_history_enabled():
-			state = get_resume_state(str(media_id))
-			if not state: return 0
-			return 1 if state.get('is_finished') else 0
-	except: pass
 	if not watched_info: return 0
 	try:
 		watched = 1 if media_id in watched_info else 0
@@ -133,12 +125,6 @@ def get_bookmarks_movie(watched_db=None):
 	return info
 
 def get_progress_status_movie(progress_info, media_id):
-	try:
-		if settings.watch_history_enabled():
-			state = get_resume_state(str(media_id))
-			if not state: return None
-			return str(round(float(state.get('progress_seconds') / state.get('total_length_seconds') * 100, 1))) if state.get('total_length_seconds') > 0 else None
-	except: pass
 	try: percent = str(round(float(progress_info[media_id]['resume_point'])))
 	except: percent = None
 	return percent
@@ -153,17 +139,6 @@ def watched_info_tvshow(watched_db=None):
 
 def get_watched_status_tvshow(watched_info, aired_eps):
 	if not watched_info: return 0, 0, aired_eps
-	try:
-		if settings.watch_history_enabled():
-			media_id = watched_info.get('media_id')
-			if not media_id: return 0, 0, aired_eps
-			if not aired_eps: return 0, 0, aired_eps
-			watched = min(get_finished_episode_count(str(media_id)), aired_eps)
-			unwatched = aired_eps - watched
-			if watched >= aired_eps: playcount = 1
-			else: playcount = 0
-			return playcount, watched, unwatched
-	except: pass
 	try:
 		watched = min(watched_info['total_played'], aired_eps)
 		unwatched = aired_eps - watched
@@ -238,16 +213,6 @@ def get_progress_status_all_episode(progress_info, season, episode):
 	except: percent = None
 	return percent
 
-def write_local_bookmark(media_type, media_id, season, episode, resume_point, curr_time, title):
-	try:
-		last_played = get_last_played_value(0)
-		local_db = get_database(0)
-		local_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', (media_type, media_id, season, episode))
-		local_db.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-					(media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
-		return True
-	except: return False
-
 def clear_local_bookmarks():
 	try:
 		dbcon = database.connect(get_video_database_path())
@@ -267,8 +232,6 @@ def erase_bookmark(media_type, media_id, season='', episode='', refresh='false')
 				trakt_progress('clear_progress', media_type, media_id, 0, season, episode, resume_id)
 			except: pass
 		watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', (media_type, media_id, season, episode))
-		if watched_indicators != 0:
-			get_database(0).execute('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', (media_type, media_id, season, episode))
 		refresh_container(refresh == 'true')
 	except: pass
 
@@ -288,14 +251,11 @@ def batch_erase_bookmark(watched_indicators, insert_list, action):
 					except: pass
 			Thread(target=_process).start()
 		watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
-		if watched_indicators != 0:
-			get_database(0).executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
 	except: pass
 
 def set_bookmark(params):
 	try:
 		media_type, tmdb_id, curr_time, total_time = params.get('media_type'), params.get('tmdb_id'), params.get('curr_time'), params.get('total_time')
-		history_tmdb_id = params.get('history_tmdb_id') or tmdb_id
 		refresh = False if params.get('from_playback', 'false') == 'true' else True
 		title, season, episode = params.get('title'), params.get('season'), params.get('episode')
 		adjusted_current_time = float(curr_time) - 5
@@ -303,13 +263,18 @@ def set_bookmark(params):
 		watched_indicators = settings.watched_indicators()
 		progress_seconds = int(float(curr_time))
 		total_length_seconds = int(float(total_time))
-		save_watch_history_entry(tmdb_id=history_tmdb_id, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
+		save_watch_history_entry(tmdb_id=tmdb_id, media_type=media_type, title=title, start_time=int(float(curr_time)) - 5, end_time=int(float(curr_time)), progress_seconds=progress_seconds,
 				total_length_seconds=total_length_seconds, is_finished=(progress_seconds / float(total_length_seconds) >= 0.9) if total_length_seconds else False,
 				season_number=season, episode_number=episode, show_title=params.get('show_title'), show_tmdb_id=params.get('show_tmdb_id'))
-		write_local_bookmark(media_type, tmdb_id, season, episode, resume_point, curr_time, title)
 		if watched_indicators == 1:
 			if trakt_official_status(media_type) == False: return
 			else: trakt_progress('set_progress', media_type, tmdb_id, resume_point, season, episode, refresh_trakt=True)
+		else:
+			erase_bookmark(media_type, tmdb_id, season, episode)
+			last_played = get_last_played_value(watched_indicators)
+			dbcon = get_database(watched_indicators)
+			dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+						(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
 		refresh_container(refresh)
 	except: pass
 
@@ -394,7 +359,6 @@ def mark_episode(params):
 	season, episode, title = int(params.get('season')), int(params.get('episode')), params.get('title')
 	if season == 0: return notification('Failed')
 	action, media_type = params.get('action'), 'episode'
-	history_tmdb_id = params.get('history_tmdb_id') or params.get('tmdb_id')
 	refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
 	if from_playback: refresh = False
 	tmdb_id = params.get('tmdb_id')
@@ -405,19 +369,17 @@ def mark_episode(params):
 		if from_playback == 'true' and trakt_official_status(media_type) == False: sleep(1000)
 		elif not trakt_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode): return notification('Error')
 		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	watched_status_mark(watched_indicators, media_type, tmdb_id, action, season, episode, title, history_tmdb_id)
+	watched_status_mark(watched_indicators, media_type, tmdb_id, action, season, episode, title)
 	update_hidden_progress(tmdb_id)
 	refresh_container(refresh)
 
-def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season='', episode='', title='', history_tmdb_id=None):
+def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season='', episode='', title=''):
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
-			history_media_id = history_tmdb_id or media_id
-			mark_as_watched(tmdb_id=history_media_id, title=title, season_number=season, episode_number=episode,
-						show_tmdb_id=media_id if media_type == 'episode' else None, total_length_seconds=0)
+			mark_as_watched(tmdb_id=media_id, media_type=media_type, title=title, season_number=season, episode_number=episode, total_length_seconds=0)
 		elif action == 'mark_as_unwatched':
 			dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

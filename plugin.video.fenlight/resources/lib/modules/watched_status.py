@@ -9,7 +9,9 @@ from modules import metadata, settings
 
 
 def get_database(watched_indicators=None):
-	return connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicators or settings.watched_indicators()])
+	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicators or settings.watched_indicators()])
+	if conn_db: return conn_db
+	else: raise Exception('Failed to connect to database.')
 
 def get_hidden_progress_items(watched_indicators):
 	try:

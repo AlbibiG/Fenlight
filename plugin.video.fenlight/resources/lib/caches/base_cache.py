@@ -80,19 +80,26 @@ def make_databases():
 		all_commands = table_creators()[database_name]
 		for command in all_commands: dbcon.execute(command)
 
-def connect_database(database_name):
-	if database_name == 'mariadb':
+def connect_database(database_name=None):
+	from modules.settings import watched_indicators
+	if watched_indicators in (0, 1):
+		try:
+			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
+			dbcon.execute('PRAGMA synchronous = OFF')
+			dbcon.execute('PRAGMA journal_mode = OFF')
+			return dbcon
+		except Exception as exc:
+			kodi_utils.logger('Failed to connect to SQLite database: %s' % exc)
+			return False
+	if watched_indicators == 2:
 		try:
 			from caches.mariadb_cache import connect
 			return SQLDatabaseWrapper(connect())
 		except Exception as exc:
-			from modules.kodi_utils import logger
-			logger('Failed to connect to SQL watch history database: %s' % exc)
-	else:
-		dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
-		dbcon.execute('PRAGMA synchronous = OFF')
-		dbcon.execute('PRAGMA journal_mode = OFF')
-		return dbcon
+			kodi_utils.logger('Failed to connect to MariaDB watch history database: %s' % exc)
+			return False
+	kodi_utils.logger('Invalid watched_indicators setting: %s' % watched_indicators)
+	return False
 
 def get_timestamp(offset=0):
 	# Offset is in HOURS multiply by 3600 to get seconds

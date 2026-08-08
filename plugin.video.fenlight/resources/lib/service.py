@@ -33,10 +33,10 @@ class DatabaseMaintenance:
 		logger('Fen Light', 'DatabaseMaintenance Service Starting')
 		try:
 			from caches.base_cache import make_databases
-			if settings.watched_indicators == 2:
-				from caches.mariadb_cache import initialize_history_database
 			make_databases()
-			initialize_history_database()
+			if settings.watched_indicators != 0 and settings.watched_indicators != 1:
+				from caches.mariadb_cache import initialize_history_database
+				initialize_history_database()
 		except Exception as exc:
 			import traceback
 			logger('Fen Light', 'DatabaseMaintenance Service Failed: %s' % exc)

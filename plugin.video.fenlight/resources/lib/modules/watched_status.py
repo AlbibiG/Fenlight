@@ -257,7 +257,7 @@ def clear_local_bookmarks():
 		for i in ('bookmark', 'streamdetails', 'files'): dbcon.executemany("DELETE FROM %s WHERE idFile=?" % i, file_ids)
 	except: pass
 
-def erase_bookmark(media_type, media_id, season='', episode='', refresh='false'):
+def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='false'):
 	try:
 		watched_indicators = settings.watched_indicators()
 		watched_db = get_database(watched_indicators)
@@ -409,7 +409,7 @@ def mark_episode(params):
 	update_hidden_progress(tmdb_id)
 	refresh_container(refresh)
 
-def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season='', episode='', title=''):
+def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season=None, episode=None, title=''):
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)

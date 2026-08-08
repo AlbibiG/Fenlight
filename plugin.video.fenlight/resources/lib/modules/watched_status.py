@@ -18,11 +18,10 @@ class SQLDatabaseWrapper:
 	
 	def _convert_query(self, query):
 		"""Convert SQLite syntax to MariaDB syntax"""
-		# Replace SQLite placeholders (?) with MariaDB placeholders (%s)
+		# NULL-safe IS ? must be converted before generic ? replacement
+		query = query.replace(' IS ?', ' <=> %s')
 		query = query.replace('?', '%s')
-		# Replace SQLite INSERT OR REPLACE with MariaDB REPLACE INTO
 		query = query.replace('INSERT OR REPLACE', 'REPLACE')
-		# Replace SQLite INSERT OR IGNORE with MariaDB INSERT IGNORE
 		query = query.replace('INSERT OR IGNORE', 'INSERT IGNORE')
 		return query
 	
@@ -420,9 +419,9 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
 			if is_sql_enabled():
-				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ? and profile_name = ?)', (media_type, media_id, season, episode, get_profile_name()))
+				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, get_profile_name()))
 			else:
-				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', (media_type, media_id, season, episode))
+				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
 		# if media_type == 'episode': clear_cache_watched_tvshow_status()
 	except: notification('Error')
@@ -441,9 +440,9 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 			if is_sql_enabled():
 				profile = get_profile_name()
 				modified_list = [(i[0], i[1], i[2], i[3], profile) for i in insert_list]
-				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ? and profile_name = ?)', modified_list)
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', modified_list)
 			else:
-				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season = ? and episode = ?)', insert_list)
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
 		# clear_cache_watched_tvshow_status()
 	except: notification('Error')

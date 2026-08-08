@@ -18,11 +18,11 @@ def _log_error(message):
 
 def get_connection_config():
     return {
-        'host': get_setting('fenlight.watch_history.server_ip', '127.0.0.1'),
-        'port': int(get_setting('fenlight.watch_history.port', '3306')),
-        'user': get_setting('fenlight.watch_history.username', 'root'),
-        'password': get_setting('fenlight.watch_history.password', ''),
-        'database': get_setting('fenlight.watch_history.database_name', 'fenlight'),
+        'host': get_setting('fenlight.watch_history.server_ip'),
+        'port': int(get_setting('fenlight.watch_history.port')),
+        'user': get_setting('fenlight.watch_history.username'),
+        'password': get_setting('fenlight.watch_history.password'),
+        'database': get_setting('fenlight.watch_history.database_name'),
         'charset': 'utf8mb4',
         'autocommit': True,
     }

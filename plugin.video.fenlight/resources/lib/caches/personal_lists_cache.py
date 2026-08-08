@@ -1,5 +1,5 @@
 from caches.base_cache import connect_database, get_timestamp
-from modules.settings import profile_name, watch_history_database_name, watched_indicators
+from modules.settings import watch_history_profile_name, watch_history_database_name, watched_indicators
 
 class PersonalListsCache:
 	def make_list(self, list_name, sort_order):
@@ -7,7 +7,7 @@ class PersonalListsCache:
 			try:
 				conn = connect_database(watch_history_database_name())
 				with conn.cursor() as cursor:
-					cursor.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (%s, %s, %s, %s, %s, %s)', (list_name, repr([]), 0, get_timestamp(), sort_order, profile_name()))
+					cursor.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (%s, %s, %s, %s, %s, %s)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
 				return True
 			except: return False
 		else:
@@ -22,7 +22,7 @@ class PersonalListsCache:
 				try:
 					conn = connect_database(watch_history_database_name())
 					with conn.cursor() as cursor:
-						cursor.execute('DELETE FROM personal_lists WHERE name=%s and profile=%s', (list_name, profile_name()))
+						cursor.execute('DELETE FROM personal_lists WHERE name=%s and profile=%s', (list_name, watch_history_profile_name()))
 						cursor.execute('OPTIMIZE TABLE personal_lists')
 					return True
 				except: return False
@@ -39,7 +39,7 @@ class PersonalListsCache:
 				try:
 					conn = connect_database(watch_history_database_name())
 					with conn.cursor() as cursor:
-						cursor.execute('UPDATE personal_lists SET contents=%s, total=%s WHERE name=%s and profile=%s', (repr([]), '0', list_name, profile_name()))
+						cursor.execute('UPDATE personal_lists SET contents=%s, total=%s WHERE name=%s and profile=%s', (repr([]), '0', list_name, watch_history_profile_name()))
 					return True
 				except: return False
 		else:
@@ -54,7 +54,7 @@ class PersonalListsCache:
 				try:
 					conn = connect_database(watch_history_database_name())
 					with conn.cursor() as cursor:
-						cursor.execute('UPDATE personal_lists SET name=%s, sort_order=%s WHERE name=%s and profile=%s', (list_name, sort_order, original_name, profile_name()))
+						cursor.execute('UPDATE personal_lists SET name=%s, sort_order=%s WHERE name=%s and profile=%s', (list_name, sort_order, original_name, watch_history_profile_name()))
 					return True
 				except: return False
 		else:
@@ -69,7 +69,7 @@ class PersonalListsCache:
 				try:
 					conn = connect_database(watch_history_database_name())
 					with conn.cursor() as cursor:
-						cursor.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=%s', (profile_name(),))
+						cursor.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=%s', (watch_history_profile_name(),))
 						all_lists = cursor.fetchall()
 					return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 				except: return []
@@ -85,7 +85,7 @@ class PersonalListsCache:
 				try:
 					conn = dbcon or connect_database(watch_history_database_name())
 					with conn.cursor() as cursor:
-						cursor.execute('SELECT contents FROM personal_lists WHERE name=%s and profile=%s', (list_name, profile_name()))
+						cursor.execute('SELECT contents FROM personal_lists WHERE name=%s and profile=%s', (list_name, watch_history_profile_name()))
 						result = cursor.fetchone()
 					return eval(result[0])
 				except: return []
@@ -109,7 +109,7 @@ class PersonalListsCache:
 						command = 'UPDATE personal_lists SET contents=%s, total=total-1 WHERE name=%s and profile=%s'
 						contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
 					with conn.cursor() as cursor:
-						cursor.execute(command, (repr(contents), list_name, profile_name()))
+						cursor.execute(command, (repr(contents), list_name, watch_history_profile_name()))
 					return 'Success'
 				except: return 'Error'
 		else:
@@ -137,7 +137,7 @@ class PersonalListsCache:
 					new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]
 					contents.extend(new_contents)
 					with conn.cursor() as cursor:
-						cursor.execute('UPDATE personal_lists SET contents=%s, total=%s WHERE name=%s and profile=%s', (repr(contents), len(contents), list_name, profile_name()))
+						cursor.execute('UPDATE personal_lists SET contents=%s, total=%s WHERE name=%s and profile=%s', (repr(contents), len(contents), list_name, watch_history_profile_name()))
 					return 'Success'
 				except: return 'Error'
 		else:

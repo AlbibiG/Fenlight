@@ -33,7 +33,7 @@ class DatabaseMaintenance:
 		logger('Fen Light', 'DatabaseMaintenance Service Starting')
 		try:
 			from caches.base_cache import make_databases
-			if settings.watched_indicators == 'mariadb':
+			if settings.watched_indicators == 2:
 				from caches.mariadb_cache import initialize_history_database
 			make_databases()
 			initialize_history_database()

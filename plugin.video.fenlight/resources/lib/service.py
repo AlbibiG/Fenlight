@@ -2,6 +2,7 @@
 import xbmc, xbmcgui
 import json
 from threading import Thread
+from modules import settings
 
 pause_services_prop = 'fenlight.pause_services'
 firstrun_update_prop = 'fenlight.firstrun_update'
@@ -32,7 +33,8 @@ class DatabaseMaintenance:
 		logger('Fen Light', 'DatabaseMaintenance Service Starting')
 		try:
 			from caches.base_cache import make_databases
-			from modules.watch_history import initialize_history_database
+			if settings.watched_indicators == 'mariadb':
+				from caches.mariadb_cache import initialize_history_database
 			make_databases()
 			initialize_history_database()
 		except Exception as exc:

@@ -81,10 +81,18 @@ def make_databases():
 		for command in all_commands: dbcon.execute(command)
 
 def connect_database(database_name):
-	dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
-	dbcon.execute('PRAGMA synchronous = OFF')
-	dbcon.execute('PRAGMA journal_mode = OFF')
-	return dbcon
+	if database_name == 'mariadb':
+		try:
+			from caches.mariadb_cache import connect
+			return SQLDatabaseWrapper(connect())
+		except Exception as exc:
+			from modules.kodi_utils import logger
+			logger('Failed to connect to SQL watch history database: %s' % exc)
+	else:
+		dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
+		dbcon.execute('PRAGMA synchronous = OFF')
+		dbcon.execute('PRAGMA journal_mode = OFF')
+		return dbcon
 
 def get_timestamp(offset=0):
 	# Offset is in HOURS multiply by 3600 to get seconds
@@ -301,3 +309,43 @@ class BaseCache(object):
 
 	def manual_connect(self, dbfile):
 		return connect_database(dbfile)
+
+class SQLDatabaseWrapper:
+	"""Wrapper for SQL database connection to provide compatible interface"""
+	def __init__(self, connection):
+		self.connection = connection
+		self.is_sql = True
+	
+	def _convert_query(self, query):
+		"""Convert SQLite syntax to MariaDB syntax"""
+		# NULL-safe IS ? must be converted before generic ? replacement
+		query = query.replace(' IS ?', ' <=> %s')
+		query = query.replace('?', '%s')
+		query = query.replace('INSERT OR REPLACE', 'REPLACE')
+		query = query.replace('INSERT OR IGNORE', 'INSERT IGNORE')
+		return query
+	
+	def execute(self, query, params=None):
+		"""Execute query and return cursor with results"""
+		try:
+			query = self._convert_query(query)
+			cursor = self.connection.cursor()
+			if params:
+				cursor.execute(query, params)
+			else:
+				cursor.execute(query)
+			self.connection.commit()
+			return cursor
+		except Exception as exc:
+			raise
+	
+	def executemany(self, query, params_list):
+		"""Execute query multiple times with different parameters"""
+		try:
+			query = self._convert_query(query)
+			cursor = self.connection.cursor()
+			cursor.executemany(query, params_list)
+			self.connection.commit()
+			cursor.close()
+		except Exception as exc:
+			raise

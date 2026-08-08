@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 import json
 from modules import kodi_utils
 from caches.base_cache import connect_database
-# logger = kodi_utils.logger
 
 class SettingsCache:
 	def get(self, setting_id):
@@ -187,7 +185,8 @@ def restore_setting_default(params):
 def reconfigure_watch_history_database(params=None):
 	if not kodi_utils.confirm_dialog(text='Reconfigure progress database table?', ok_label='Yes', cancel_label='No', default_control=11):
 		return
-	from modules.watch_history import reconfigure_history_database
+	if settings_cache.get('watched_indicators') == '2':
+		from caches.mariadb_cache import reconfigure_history_database
 	if reconfigure_history_database():
 		kodi_utils.notification('Progress table reconfigured successfully')
 	else:
@@ -213,7 +212,7 @@ def default_settings():
 {'setting_id': 'update.username', 'setting_type': 'string', 'setting_default': 'FenlightAnonyMouse'},
 {'setting_id': 'update.location', 'setting_type': 'string', 'setting_default': 'FenlightAnonyMouse.github.io'},
 #==================== Watched Indicators
-{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt'}},
+{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB'}},
 #==================== Watch History Database
 {'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},

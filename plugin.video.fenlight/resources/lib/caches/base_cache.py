@@ -82,7 +82,7 @@ def make_databases():
 
 def connect_database(database_name=None):
 	from modules.settings import watched_indicators
-	if watched_indicators in (0, 1) or (database_name not in ('mariadb') and watched_indicators not in (0, 1)):
+	if watched_indicators() in (0, 1) or (database_name not in ('mariadb') and watched_indicators() not in (0, 1)):
 		try:
 			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
 			dbcon.execute('PRAGMA synchronous = OFF')
@@ -91,14 +91,14 @@ def connect_database(database_name=None):
 		except Exception as exc:
 			kodi_utils.logger('Failed to connect to SQLite database', '%s' % exc)
 			return False
-	if watched_indicators == 2:
+	if watched_indicators() == 2:
 		try:
 			from caches.mariadb_cache import connect
 			return SQLDatabaseWrapper(connect())
 		except Exception as exc:
 			kodi_utils.logger('Failed to connect to MariaDB watch history database', '%s' % exc)
 			return False
-	kodi_utils.logger('Invalid watched_indicators setting', 'watched_indicator: %s | database_name: %s' % (watched_indicators, database_name))
+	kodi_utils.logger('Invalid watched_indicators setting', 'watched_indicator: %s | database_name: %s' % (watched_indicators(), database_name))
 	return False
 
 def get_timestamp(offset=0):

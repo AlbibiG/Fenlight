@@ -463,10 +463,25 @@
                           <property name="setting_description">Choose the maximum active concurrent threads Fen Light will be limited to</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=max_threads)</onclick>
                       </item>
+        <!-- Watched Indicators -->
+                      <item>
+                          <visible>Container(2000).HasFocus(10)</visible>
+                          <property name="setting_label">Watched Indicators</property>
+                          <property name="setting_type">separator</property>
+                          <onclick>noop</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10)</visible>
+                          <property name="setting_label">Watched Status Provider</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watched_indicators_name)]</property>
+                          <property name="setting_description">Choose the provider that keeps track of the Movies and Episodes you have watched within Fen Light. Options are the built in method of Fen Light, your Trakt account, or an external SQL database.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_from_list&amp;setting_id=watched_indicators)</onclick>
+                      </item>
         <!-- Watch History -->
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Watch History</property>
+                          <property name="setting_label">SQL Database</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
@@ -480,7 +495,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">MariaDB Host</property>
+                          <property name="setting_label">Host</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.server_ip)]</property>
                           <property name="setting_description">The MariaDB server IP or hostname for watch-history storage</property>
@@ -488,7 +503,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">MariaDB Port</property>
+                          <property name="setting_label">Port</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.port)]</property>
                           <property name="setting_description">The MariaDB port to use for watch-history storage</property>
@@ -496,7 +511,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">MariaDB Username</property>
+                          <property name="setting_label">Username</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.username)]</property>
                           <property name="setting_description">The username used to connect to your MariaDB server</property>
@@ -520,7 +535,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Watch History Profile</property>
+                          <property name="setting_label">Kodi Profile</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.profile_name)]</property>
                           <property name="setting_description">The profile name to associate with the saved watch-history entries</property>
@@ -528,7 +543,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Reconfigure Watch History Table</property>
+                          <property name="setting_label">Reconfigure Database Tables</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">Reconfigure</property>
                           <property name="setting_description">Recreate the watch-history table if missing, then verify its schema, columns, and field types. No data will be affected.</property>
@@ -575,21 +590,6 @@
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.update.location)]</property>
                           <property name="setting_description">Leave this setting as default unless you wsh to update Fen Light through a different user repository. If you do, enter the Github Repo Address of the new github location</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=update.location)</onclick>
-                      </item>
-        <!-- Watched Indicators -->
-                      <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Watched Indicators</property>
-                          <property name="setting_type">separator</property>
-                          <onclick>noop</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Watched Status Provider</property>
-                          <property name="setting_type">action</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watched_indicators_name)]</property>
-                          <property name="setting_description">Choose the provider that keeps track of the Movies and Episodes you have watched within Fen Light. Options are the built in method of Fen Light, your Trakt account, or an external SQL database.</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_from_list&amp;setting_id=watched_indicators)</onclick>
                       </item>
         <!-- Trakt Cache -->
                       <item>

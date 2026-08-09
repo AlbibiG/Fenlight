@@ -66,9 +66,10 @@ def initialize_history_database():
                     curr_time text,
                     last_played text,
                     resume_id integer,
+                    play_event text,
                     title text,
                     profile text,
-                    unique (db_type, media_id, season, episode, last_played, profile)
+                    unique (db_type, media_id, season, episode, last_played, profile, play_event)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
@@ -137,9 +138,9 @@ def reconfigure_history_database():
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
                 'last_played': 'text', 'resume_id': 'integer',
-                'title': 'text', 'profile': 'text'
+                'play_event': 'text', 'title': 'text', 'profile': 'text'
             },
-            'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'last_played']
+            'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'last_played', 'play_event']
         },
         'watched': {
             'columns': {

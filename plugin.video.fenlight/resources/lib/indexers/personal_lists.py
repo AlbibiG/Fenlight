@@ -170,8 +170,7 @@ def get_personal_list(params):
 def make_new_personal_list(params):
 	suggested_list_name, chosen_list = '', []
 	external_creation = params.get('external_creation', 'false') == 'true'
-	if not external_creation and kodi_utils.confirm_dialog(
-		heading='Personal Lists',text='Import a Trakt List to populate this new list?', ok_label='Yes', cancel_label='No'):
+	if not external_creation and kodi_utils.confirm_dialog(heading='Personal Lists',text='Import a Trakt List to populate this new list?', ok_label='Yes', cancel_label='No'):
 		from apis.trakt_api import get_trakt_list_selection
 		chosen_list = get_trakt_list_selection(['default', 'personal', 'liked'])
 		if chosen_list == None: return None, None
@@ -180,6 +179,11 @@ def make_new_personal_list(params):
 	if list_name == None: return None, None
 	sort_order = personal_sort_order()
 	if sort_order == None: return None, None
+
+	from modules.kodi_utils import logger
+	logger('Creating Personal List: %s | Sort Order: %s' % (list_name, sort_order))
+
+
 	success = personal_lists_cache.make_list(list_name, sort_order)
 	if not success:
 		kodi_utils.notification('Error Creating List', 3000)

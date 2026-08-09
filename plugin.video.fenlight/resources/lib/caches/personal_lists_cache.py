@@ -1,5 +1,6 @@
 from caches.base_cache import connect_database, get_timestamp
 from modules.settings import watch_history_profile_name, watched_indicators
+from modules.kodi_utils import logger
 
 class PersonalListsCache:
 	def make_list(self, list_name, sort_order):
@@ -7,7 +8,10 @@ class PersonalListsCache:
 			try:
 				conn = connect_database('mariadb')
 				with conn.cursor() as cursor:
-					cursor.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (%s, %s, %s, %s, %s, %s)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
+					try:
+						cursor.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (%s, %s, %s, %s, %s, %s)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
+					except Exception as e:
+						logger('Error creating personal list: %s' % str(e))
 				return True
 			except: return False
 		else:

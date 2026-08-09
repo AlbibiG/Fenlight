@@ -36,7 +36,6 @@ class PersonalListsCache:
 				return False
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				dbcon.execute('DELETE FROM personal_lists WHERE name=?', (list_name,))
 				dbcon.execute('VACUUM')
 				return True
@@ -53,7 +52,6 @@ class PersonalListsCache:
 				return False
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr([]), '0', list_name))
 				return True
 			except: return False
@@ -69,7 +67,6 @@ class PersonalListsCache:
 				return False
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				dbcon.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=?', (list_name, sort_order, original_name))
 				return True
 			except: return False
@@ -78,15 +75,13 @@ class PersonalListsCache:
 		dbcon = get_database(watched_indicators())
 		if watched_indicators() == 2:
 			try:
-				dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
-				all_lists = dbcon.fetchall()
+				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
 				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except Exception as e: 
 				logger('Error getting personal lists in MariaDB', str(e))
 				return []
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists').fetchall()
 				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except: return []
@@ -95,15 +90,12 @@ class PersonalListsCache:
 		dbcon = get_database(watched_indicators())
 		if watched_indicators() == 2:
 			try:
-				dbcon.execute('SELECT contents FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name()))
-				result = dbcon.fetchone()
-				return eval(result[0])
+				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name())).fetchone()[0])
 			except Exception as e: 
 				logger('Error getting personal list in MariaDB', str(e))
 				return []
 		else:
 			try:
-				if not dbcon: dbcon = connect_database('personal_lists_db')
 				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=?', (list_name,)).fetchone()[0])
 			except: return []
 
@@ -127,7 +119,6 @@ class PersonalListsCache:
 				return 'Error'
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				contents = self.get_list(list_name, dbcon)
 				if action == 'add':
 					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
@@ -156,7 +147,6 @@ class PersonalListsCache:
 				return 'Error'
 		else:
 			try:
-				dbcon = connect_database('personal_lists_db')
 				contents = self.get_list(list_name, dbcon)
 				compare_ids = [str(i['media_id']) for i in contents]
 				new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]

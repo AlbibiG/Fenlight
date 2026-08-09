@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 import time
 from os import path
 import sqlite3 as database
 from modules import kodi_utils
-# logger = kodi_utils.logger
 
 def table_creators():
 	return {

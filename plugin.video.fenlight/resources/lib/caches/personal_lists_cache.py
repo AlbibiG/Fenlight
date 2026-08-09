@@ -2,8 +2,9 @@ from caches.base_cache import connect_database, get_timestamp
 from modules.settings import watch_history_profile_name, watched_indicators
 from modules.kodi_utils import logger
 
-def get_database(watched_indicators=None):
-	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicators()])
+def get_database(watched_indicator=None):
+	logger('Get Database', watched_indicators)
+	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator])
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
 

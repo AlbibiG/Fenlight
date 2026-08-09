@@ -504,15 +504,15 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">MariaDB Password</property>
+                          <property name="setting_label">Password</property>
                           <property name="setting_type">password</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.password)]</property>
+                          <property name="setting_value">********</property>
                           <property name="setting_description">The password used to connect to your MariaDB server</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.password)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">MariaDB Database</property>
+                          <property name="setting_label">Database</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.database_name)]</property>
                           <property name="setting_description">The database name that will hold the watch-history table</property>
@@ -531,7 +531,7 @@
                           <property name="setting_label">Reconfigure Watch History Table</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">Reconfigure</property>
-                          <property name="setting_description">Create the watch-history table if missing, then verify its schema, columns, and field types</property>
+                          <property name="setting_description">Recreate the watch-history table if missing, then verify its schema, columns, and field types. No data will be affected.</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.reconfigure_watch_history_database)</onclick>
                       </item>
         <!-- Manage Addon Updates -->

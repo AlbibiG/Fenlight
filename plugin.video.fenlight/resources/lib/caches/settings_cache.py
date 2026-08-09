@@ -220,14 +220,14 @@ def default_settings():
 #==================== Watched Indicators
 {'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB'}},
 #==================== Watch History Database
-{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': '', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
-{'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': '', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},
+{'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535'},
+{'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root'},
+{'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight'},
+{'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
+{'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': 'empty_setting'},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
 {'setting_id': 'trakt.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},

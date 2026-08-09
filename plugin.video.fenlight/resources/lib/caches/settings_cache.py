@@ -220,7 +220,6 @@ def default_settings():
 #==================== Watched Indicators
 {'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB'}},
 #==================== Watch History Database
-{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},
 {'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535'},
 {'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root'},

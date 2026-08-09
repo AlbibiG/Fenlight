@@ -9,7 +9,7 @@ from modules import kodi_utils
 # logger = kodi_utils.logger
 
 def get_location(insert=''):
-	return 'https://github.com/%s/%s/raw/main/packages/%s' % (get_setting('fenlight.update.username'), get_setting('update.location'), insert)
+	return 'https://github.com/%s/%s/raw/main/%s' % (get_setting('fenlight.update.username'), get_setting('update.location'), insert)
 
 def get_versions():
 	try:
@@ -59,7 +59,7 @@ def update_check(action=4):
 
 def rollback_check():
 	current_version = get_versions()[0]
-	url = 'https://api.github.com/repos/%s/%s/contents/packages' % (get_setting('update.username'), get_setting('update.location'))
+	url = 'https://api.github.com/repos/%s/%s/contents/' % (get_setting('update.username'), get_setting('update.location'))
 	kodi_utils.show_busy_dialog()
 	results = requests.get(url)
 	kodi_utils.hide_busy_dialog()

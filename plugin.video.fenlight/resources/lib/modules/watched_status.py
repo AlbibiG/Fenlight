@@ -7,7 +7,6 @@ from modules.kodi_utils import kodi_progress_background, sleep, get_video_databa
 from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
 
-
 def get_database(watched_indicators=None):
 	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicators or settings.watched_indicators()])
 	if conn_db: return conn_db
@@ -359,11 +358,8 @@ def mark_episode(params):
 
 def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season=None, episode=None, title=''):
 	try:
-		logger('Check 1','1')
 		last_played = get_last_played_value(watched_indicators)
-		logger('Check 2', last_played)
 		dbcon = get_database(watched_indicators)
-		logger('Check 3', dbcon)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
 				try:
@@ -378,7 +374,9 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 			else:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
-	except: notification('Error')
+	except Exception as e: 
+		notification('Error')
+		logger('Error in watched_status_mark', str(e))
 
 def batch_watched_status_mark(watched_indicators, insert_list, action):
 	try:

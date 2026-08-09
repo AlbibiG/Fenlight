@@ -789,12 +789,12 @@ def trakt_sync_activities(force_update=False):
 		return result
 	def _check_daily_expiry():
 		return int(time.time()) >= int(get_setting('fenlight.trakt.next_daily_clear', '0'))
+	if not settings.trakt_user_active() and not force_update: return 'no account'
 	if refresh_token_check(): trakt_refresh_token()
 	if force_update: trakt_cache.clear_all_trakt_cache_data(silent=True, refresh=False)
 	elif _check_daily_expiry():
 		trakt_cache.clear_daily_cache()
 		set_setting('trakt.next_daily_clear', str(int(time.time()) + (24*3600)))
-	if not settings.trakt_user_active and not force_update: return 'no account'
 	try: latest = trakt_get_activity()
 	except: return 'failed'
 	fallback_date = '2020-01-01T00:00:01.000Z'

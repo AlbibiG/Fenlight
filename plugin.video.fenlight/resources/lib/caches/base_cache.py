@@ -89,16 +89,16 @@ def connect_database(database_name=None):
 			dbcon.execute('PRAGMA journal_mode = OFF')
 			return dbcon
 		except Exception as exc:
-			kodi_utils.logger('Failed to connect to SQLite database: %s' % exc)
+			kodi_utils.logger('Failed to connect to SQLite database', '%s' % exc)
 			return False
 	if watched_indicators == 2:
 		try:
 			from caches.mariadb_cache import connect
 			return SQLDatabaseWrapper(connect())
 		except Exception as exc:
-			kodi_utils.logger('Failed to connect to MariaDB watch history database: %s' % exc)
+			kodi_utils.logger('Failed to connect to MariaDB watch history database', '%s' % exc)
 			return False
-	kodi_utils.logger('Invalid watched_indicators setting: %s' % watched_indicators)
+	kodi_utils.logger('Invalid watched_indicators setting', 'watched_indicator: %s | database_name: %s' % (watched_indicators, database_name))
 	return False
 
 def get_timestamp(offset=0):

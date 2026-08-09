@@ -181,7 +181,7 @@ def make_new_personal_list(params):
 	if sort_order == None: return None, None
 
 	from modules.kodi_utils import logger
-	logger('Creating Personal List: %s | Sort Order: %s' % (list_name, sort_order))
+	logger('List Creation','Creating Personal List: %s | Sort Order: %s' % (list_name, sort_order))
 
 
 	success = personal_lists_cache.make_list(list_name, sort_order)

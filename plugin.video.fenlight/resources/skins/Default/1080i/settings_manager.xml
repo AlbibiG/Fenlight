@@ -1240,7 +1240,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(50)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(fenlight.trakt.client),$INFO[Window(10000).Property(fenlight.trakt.client.default)])</visible>
+                          <visible>String.IsEqual(Window(10000).Property(fenlight.trakt.client.is_default),false)</visible>
                           <property name="setting_label">    - Restore Default Client ID Key</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">...</property>
@@ -1257,7 +1257,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(50)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(fenlight.trakt.secret),$INFO[Window(10000).Property(fenlight.trakt.secret.default)])</visible>
+                          <visible>String.IsEqual(Window(10000).Property(fenlight.trakt.secret.is_default),false)</visible>
                           <property name="setting_label">    - Restore Default Client Secret Key</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">...</property>
@@ -1281,7 +1281,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(50)</visible>
-                          <visible>!String.IsEqual(Window(10000).Property(fenlight.tmdb_api),$INFO[Window(10000).Property(fenlight.tmdb_api.default)])</visible>
+                          <visible>String.IsEqual(Window(10000).Property(fenlight.tmdb_api.is_default),false)</visible>
                           <property name="setting_label">    - Restore Default TMDb API Key</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">...</property>

@@ -53,7 +53,9 @@ class SettingsCache:
 		kodi_utils.set_property('fenlight.%s' % setting_id, setting_value)
 		setting_info = default_setting_values(setting_id)
 		if setting_info:
-			kodi_utils.set_property('fenlight.%s.default' % setting_id, setting_info['setting_default'])
+			setting_default = setting_info['setting_default']
+			kodi_utils.set_property('fenlight.%s.default' % setting_id, setting_default)
+			kodi_utils.set_property('fenlight.%s.is_default' % setting_id, str(setting_value == setting_default).lower())
 
 	def delete_memory_cache(self, setting_id):
 		kodi_utils.clear_property('fenlight.%s' % setting_id)

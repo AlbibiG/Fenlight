@@ -8,7 +8,7 @@ from modules.utils import get_datetime, adjust_premiered_date, sort_for_article,
 from modules import metadata, settings
 
 def get_database(watched_indicator=None):
-	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator])
+	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator or settings.watched_indicators()])
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
 

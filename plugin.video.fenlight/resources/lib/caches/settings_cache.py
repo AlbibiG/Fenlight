@@ -51,9 +51,12 @@ class SettingsCache:
 
 	def set_memory_cache(self, setting_id, setting_value):
 		kodi_utils.set_property('fenlight.%s' % setting_id, setting_value)
+		setting_info = default_setting_values(setting_id)
+		if setting_info:
+			kodi_utils.set_property('fenlight.%s.default' % setting_id, setting_info['setting_default'])
 
 	def delete_memory_cache(self, setting_id):
-		clear_property('fenlight.%s' % setting_id)
+		kodi_utils.clear_property('fenlight.%s' % setting_id)
 
 	def setting_info(self, setting_id):
 		d_settings = default_settings()
@@ -328,7 +331,7 @@ def default_settings():
 {'setting_id': 'trakt.client', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'trakt.secret', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 #==================== TMDb API
-{'setting_id': 'tmdb_api', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'tmdb_api', 'setting_type': 'string', 'setting_default': '7025e94b6ec71625d06ff4d38a9f9727'},
 #==================== TMDb Lists
 {'setting_id': 'tmdb.token', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'tmdb.account_id', 'setting_type': 'string', 'setting_default': 'empty_setting'},

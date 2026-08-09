@@ -4,7 +4,7 @@ from modules.kodi_utils import translate_path, get_property
 # from modules.kodi_utils import logger
 
 def tmdb_api_key():
-	return get_setting('fenlight.tmdb_api', '')
+	return get_setting('fenlight.tmdb_api', '7025e94b6ec71625d06ff4d38a9f9727')
 
 def trakt_client():
 	return get_setting('fenlight.trakt.client', '')

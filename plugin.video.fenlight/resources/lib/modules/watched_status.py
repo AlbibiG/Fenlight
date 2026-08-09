@@ -130,7 +130,7 @@ def watched_info_tvshow(watched_db=None):
 	if settings.watched_indicators() == 2:
 		try:
 			data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
-								('episode', settings.watch_history_profile_name())).fetchall()
+									('episode', settings.watch_history_profile_name())).fetchall()
 			return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
 		except: return {}
 	else:
@@ -159,7 +159,7 @@ def watched_info_season(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	if settings.watched_indicators() == 2:
 		try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
-							('episode', str(media_id), settings.watch_history_profile_name())).fetchall())
+								('episode', str(media_id), settings.watch_history_profile_name())).fetchall())
 		except: watched_info = {}
 	else:
 		try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season',
@@ -294,7 +294,7 @@ def set_bookmark(params):
 			last_played = get_last_played_value(watched_indicators)
 			dbcon = get_database(watched_indicators)
 			if settings.watched_indicators == 2:
-				dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+				dbcon.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
 							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, settings.watch_history_profile_name()))
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -404,7 +404,7 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
 				try:
-					dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
+					dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
 				except Exception as e:
 					logger('Error marking as watched:', str(e))
 			else:
@@ -424,20 +424,15 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
-				profile = settings.watch_history_profile_name()
-				modified_list = [(i[0], i[1], i[2], i[3], i[4], i[5], profile) for i in insert_list]
-				dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', modified_list)
+				dbcon.executemany('INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', {insert_list, settings.watch_history_profile_name()})
 			else:
 				dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
 		elif action == 'mark_as_unwatched':
 			if watched_indicators == 2:
-				profile = settings.watch_history_profile_name()
-				modified_list = [(i[0], i[1], i[2], i[3], profile) for i in insert_list]
-				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', modified_list)
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', {insert_list, settings.watch_history_profile_name()})
 			else:
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
-		# clear_cache_watched_tvshow_status()
 	except: notification('Error')
 
 def get_next_episodes(nextep_content):
@@ -531,13 +526,19 @@ def get_recently_watched(media_type, short_list=1):
 	else:
 		dbcon = get_database(watched_indicators)
 		if short_list:
-			data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? ORDER BY last_played DESC', ('episode',)).fetchall()
+			if watched_indicators == 2:
+				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ? ORDER BY last_played DESC', ('episode', settings.watch_history_profile_name())).fetchall()
+			else:
+				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? ORDER BY last_played DESC', ('episode',)).fetchall()
 			data = [{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
 						for i in data][:20]
 		else:
 			seen = set()
 			seen_add = seen.add
-			data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ?', ('episode',)).fetchall()
+			if watched_indicators == 2:
+				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ?', ('episode', settings.watch_history_profile_name())).fetchall()
+			else:
+				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ?', ('episode',)).fetchall()
 			data = sorted([{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
 						for i in sorted(data, key=lambda x: (x[4], x[0], x[1], x[2]), reverse=True) if not (i[0] in seen or seen_add(i[0]))],
 						key=lambda x: (x['last_played'], x['media_ids']['tmdb'], x['season'], x['episode']), reverse=True)

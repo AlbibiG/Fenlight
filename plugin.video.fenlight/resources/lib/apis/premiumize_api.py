@@ -48,8 +48,8 @@ class PremiumizeAPI:
 				self.token = str(response['access_token'])
 				set_setting('pm.token', self.token)
 			except:
-				 ok_dialog(text='Error')
-				 break
+				ok_dialog(text='Error')
+				break
 		try: progressDialog.close()
 		except: pass
 		if self.token:

@@ -186,14 +186,16 @@ def reconfigure_watch_history_database(params=None):
 	if not kodi_utils.confirm_dialog(text='Reconfigure progress database table?', ok_label='Yes', cancel_label='No', default_control=11):
 		return
 	try:
-		kodi_utils.logger('Provider for database', settings_cache.get('watched_indicators'))
-		if settings_cache.get('watched_indicators') == '2':
+		from modules.settings import watched_indicators
+		kodi_utils.logger('Provider for database', watched_indicators())
+		if watched_indicators() == 2:
 			from caches.mariadb_cache import reconfigure_history_database
 		if reconfigure_history_database():
 			kodi_utils.notification('Progress table reconfigured successfully')
 		else:
 			kodi_utils.notification('Progress table reconfiguration failed')
 	except Exception as exc:
+		kodi_utils.notification('Error reconfiguring watch history database')
 		kodi_utils.logger('Error reconfiguring watch history database', str(exc))
 
 def default_setting_values(setting_id):

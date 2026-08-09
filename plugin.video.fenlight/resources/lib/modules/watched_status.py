@@ -39,7 +39,7 @@ def hide_unhide_progress_items(params):
 	if action == 'drop': current_items.append(media_id)
 	else: current_items.remove(media_id)
 	watched_db = get_database()
-	if settings.watched_indicators == 2:
+	if settings.watched_indicators() == 2:
 		watched_info = watched_db.execute('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), settings.watch_history_profile_name()))
 	else:
 		watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items),))
@@ -344,7 +344,7 @@ def set_bookmark(params):
 			erase_bookmark(media_type, tmdb_id, season, episode)
 			last_played = get_last_played_value(watched_indicators)
 			dbcon = get_database(watched_indicators)
-			if settings.watched_indicators == 2:
+			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
 							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, settings.watch_history_profile_name()))
 				_record_historical_play(dbcon, media_type, tmdb_id, season, episode, last_played, title, resume_point, curr_time, 0)

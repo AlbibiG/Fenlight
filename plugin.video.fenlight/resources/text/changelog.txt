@@ -1,5 +1,3 @@
-[COLOR darkgoldenrod]GOD BLESS HIM AND KEEP HIM SAFE.[/COLOR]
-
 [COLOR dodgerblue][B]Version 2.1.22[/B][/COLOR]
 - [REQUEST] Added custom poster/fanart for Personal Lists. This means for the list itself. Found within the "Edit Properties" context menu item.
 - [CODE] A fair few fixes for small bugs throughout addon.

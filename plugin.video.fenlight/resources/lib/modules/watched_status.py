@@ -15,9 +15,12 @@ def get_database(watched_indicators=None):
 
 def get_hidden_progress_items(watched_indicators):
 	try:
-		if watched_indicators == 0:
+		if watched_indicators != 1:
 			watched_db = get_database()
-			watched_info = watched_db.execute('SELECT status FROM watched_status WHERE db_type = ?', ('hidden_progress_items',)).fetchone()[0]
+			if watched_indicators == 0:
+				watched_info = watched_db.execute('SELECT status FROM watched_status WHERE db_type = ?', ('hidden_progress_items',)).fetchone()[0]
+			if watched_indicators == 2:
+				watched_info = watched_db.execute('SELECT status FROM watched_status WHERE db_type = ? and profile = ?', ('hidden_progress_items', settings.watch_history_profile_name())).fetchone()[0]
 			return eval(watched_info) or []
 		else: return trakt_get_hidden_items('dropped')
 	except: return []
@@ -38,7 +41,7 @@ def hide_unhide_progress_items(params):
 	else: current_items.remove(media_id)
 	watched_db = get_database()
 	if settings.watched_indicators == 2:
-		watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), settings.watch_history_profile_name()))
+		watched_info = watched_db.execute('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), settings.watch_history_profile_name()))
 	else:
 		watched_info = watched_db.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items),))
 	if refresh: kodi_refresh()

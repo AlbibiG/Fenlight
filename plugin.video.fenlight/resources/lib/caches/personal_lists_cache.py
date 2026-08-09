@@ -1,11 +1,11 @@
 from caches.base_cache import connect_database, get_timestamp
-from modules.settings import watch_history_profile_name, watch_history_database_name, watched_indicators
+from modules.settings import watch_history_profile_name, watched_indicators
 
 class PersonalListsCache:
 	def make_list(self, list_name, sort_order):
 		if watched_indicators() == 2:
 			try:
-				conn = connect_database(watch_history_database_name())
+				conn = connect_database('mariadb')
 				with conn.cursor() as cursor:
 					cursor.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (%s, %s, %s, %s, %s, %s)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
 				return True
@@ -20,7 +20,7 @@ class PersonalListsCache:
 	def delete_list(self, list_name):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					with conn.cursor() as cursor:
 						cursor.execute('DELETE FROM personal_lists WHERE name=%s and profile=%s', (list_name, watch_history_profile_name()))
 						cursor.execute('OPTIMIZE TABLE personal_lists')
@@ -37,7 +37,7 @@ class PersonalListsCache:
 	def delete_list_contents(self, list_name):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					with conn.cursor() as cursor:
 						cursor.execute('UPDATE personal_lists SET contents=%s, total=%s WHERE name=%s and profile=%s', (repr([]), '0', list_name, watch_history_profile_name()))
 					return True
@@ -52,7 +52,7 @@ class PersonalListsCache:
 	def update_list_details(self, list_name, sort_order, original_name):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					with conn.cursor() as cursor:
 						cursor.execute('UPDATE personal_lists SET name=%s, sort_order=%s WHERE name=%s and profile=%s', (list_name, sort_order, original_name, watch_history_profile_name()))
 					return True
@@ -67,7 +67,7 @@ class PersonalListsCache:
 	def get_lists(self):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					with conn.cursor() as cursor:
 						cursor.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=%s', (watch_history_profile_name(),))
 						all_lists = cursor.fetchall()
@@ -83,7 +83,7 @@ class PersonalListsCache:
 	def get_list(self, list_name, dbcon=None):
 		if watched_indicators() == 2:
 				try:
-					conn = dbcon or connect_database(watch_history_database_name())
+					conn = dbcon or connect_database('mariadb')
 					with conn.cursor() as cursor:
 						cursor.execute('SELECT contents FROM personal_lists WHERE name=%s and profile=%s', (list_name, watch_history_profile_name()))
 						result = cursor.fetchone()
@@ -98,7 +98,7 @@ class PersonalListsCache:
 	def add_remove_list_item(self, action, new_contents, list_name):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					contents = self.get_list(list_name, conn)
 					if action == 'add':
 						if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
@@ -131,7 +131,7 @@ class PersonalListsCache:
 	def add_many_list_items(self, new_contents, list_name):
 		if watched_indicators() == 2:
 				try:
-					conn = connect_database(watch_history_database_name())
+					conn = connect_database('mariadb')
 					contents = self.get_list(list_name, conn)
 					compare_ids = [str(i['media_id']) for i in contents]
 					new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]

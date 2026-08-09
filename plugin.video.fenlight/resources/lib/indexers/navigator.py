@@ -19,6 +19,22 @@ class Navigator:
 		self.fanart = k.get_addon_fanart()
 		self.run_plugin = 'RunPlugin(%s)'
 
+	def _is_trakt_item(self, item):
+		mode = item.get('mode', '')
+		action = item.get('action', '')
+		list_type = item.get('list_type', '')
+		menu_type = item.get('menu_type', '')
+		if 'trakt' in mode: return True
+		if action.startswith('trakt_') or action == 'in_trakt_lists': return True
+		if mode == 'navigator.search_history' and action == 'trakt_lists': return True
+		if mode == 'navigator.certifications' and menu_type in ('tvshow', 'anime'): return True
+		if list_type in ('my_lists', 'liked_lists', 'trending', 'popular'): return True
+		return False
+
+	def _filter_inactive_trakt_items(self, browse_list):
+		if s.trakt_user_active(): return browse_list
+		return [i for i in browse_list if not self._is_trakt_item(i)]
+
 	def main(self):
 		def _process():
 			for count, item in enumerate(browse_list):
@@ -46,6 +62,7 @@ class Navigator:
 				except: pass
 		if self.params_get('full_list', 'false') == 'true': browse_list = nc.get_main_lists(self.list_name)[0]
 		else: browse_list = nc.currently_used_list(self.list_name)
+		browse_list = self._filter_inactive_trakt_items(browse_list)
 		results = sorted(list(_process()), key=lambda k: k[1])
 		k.add_items(int(sys.argv[1]), [i[0] for i in results])
 		self.end_directory()
@@ -105,7 +122,7 @@ class Navigator:
 
 	def my_content(self):
 		if s.trakt_user_active(): self.add({'mode': 'navigator.trakt_lists_personal'}, 'Trakt Lists', 'trakt')
-		self.add({'mode': 'navigator.trakt_lists_public'}, 'Trakt Public Lists', 'trakt')
+		if s.trakt_user_active(): self.add({'mode': 'navigator.trakt_lists_public'}, 'Trakt Public Lists', 'trakt')
 		if s.tmdblist_user_active(): self.add({'mode': 'tmdblist.get_tmdb_lists'}, 'TMDb Lists', 'tmdb')
 		self.add({'mode': 'personal_lists.get_personal_lists'}, 'Personal Lists', 'lists')
 		self.add({'mode': 'navigator.discover_contents', 'media_type': 'movie', 'show_new': 'false'}, 'Discover Lists (Movies)', 'movies')
@@ -123,7 +140,8 @@ class Navigator:
 		self.end_directory()
 
 	def trakt_lists_public(self):
-		self.add({'mode': 'trakt.list.get_trakt_user_lists', 'list_type': 'trending', 'category_name': 'Trending User Lists'}, 'Trending User Lists', 'trakt')
+		if s.trakt_user_active():
+			self.add({'mode': 'trakt.list.get_trakt_user_lists', 'list_type': 'trending', 'category_name': 'Trending User Lists'}, 'Trending User Lists', 'trakt')
 		self.add({'mode': 'trakt.list.get_trakt_user_lists', 'list_type': 'popular', 'category_name': 'Popular User Lists'}, 'Popular User Lists', 'trakt')
 		self.add({'mode': 'navigator.search_history', 'action': 'trakt_lists'}, 'Search User Lists', 'search')
 		self.end_directory()
@@ -183,7 +201,7 @@ class Navigator:
 		self.add({'mode': 'navigator.search_history', 'action': 'people', 'name': 'Search History People'}, 'People', 'people')
 		self.add({'mode': 'navigator.search_history', 'action': 'tmdb_keyword_movie', 'name': 'Search History Keywords (Movies)'}, 'Keywords (Movies)', 'tmdb')
 		self.add({'mode': 'navigator.search_history', 'action': 'tmdb_keyword_tvshow', 'name': 'Search History Keywords (TV Shows)'}, 'Keywords (TV Shows)', 'tmdb')
-		self.add({'mode': 'navigator.search_history', 'action': 'trakt_lists'}, 'Search Trakt User Lists', 'trakt')
+		if s.trakt_user_active(): self.add({'mode': 'navigator.search_history', 'action': 'trakt_lists'}, 'Search Trakt User Lists', 'trakt')
 		if s.easynews_authorized():
 			self.add({'mode': 'navigator.search_history', 'action': 'easynews_video'}, 'Search Easynews Videos', 'easynews')
 			self.add({'mode': 'navigator.search_history', 'action': 'easynews_image'}, 'Search Easynews Images', 'easynews')
@@ -531,6 +549,7 @@ class Navigator:
 		'trakt_public': ('Random Trakt Lists (Public)', nc.random_trakt_lists_public)}
 		self.category_name, function = random_list_dict[self.params_get('menu_type')]
 		func = function()
+		func = self._filter_inactive_trakt_items(func)
 		for item in func: self.add(item, item['name'], item['iconImage'])
 		self.end_directory()
 

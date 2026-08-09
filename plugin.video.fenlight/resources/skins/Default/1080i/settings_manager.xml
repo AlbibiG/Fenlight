@@ -585,7 +585,7 @@
                       </item>
         <!-- Trakt Cache -->
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.trakt.user),empty_setting)</visible>
                           <property name="setting_label">Trakt Cache</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>

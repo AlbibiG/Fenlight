@@ -478,23 +478,15 @@
                           <property name="setting_description">Choose the provider that keeps track of the Movies and Episodes you have watched within Fen Light. Options are the built in method of Fen Light, your Trakt account, or an external SQL database.</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_from_list&amp;setting_id=watched_indicators)</onclick>
                       </item>
-        <!-- Watch History -->
+        <!-- Database Connection -->
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">SQL Database</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
-                          <property name="setting_label">Enable Watch History</property>
-                          <property name="setting_type">boolean</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.enabled)]</property>
-                          <property name="setting_description">Enable storing watch progress and watched state for resume and watched-status tracking</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_boolean&amp;setting_id=watch_history.enabled)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Host</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.server_ip)]</property>
@@ -502,7 +494,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.server_ip)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Port</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.port)]</property>
@@ -510,7 +502,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.port)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Username</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.username)]</property>
@@ -518,7 +510,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.username)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Password</property>
                           <property name="setting_type">password</property>
                           <property name="setting_value">********</property>
@@ -526,7 +518,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.password)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Database</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.database_name)]</property>
@@ -534,7 +526,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.database_name)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Kodi Profile</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.profile_name)]</property>
@@ -542,7 +534,7 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.profile_name)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10)</visible>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Reconfigure Database Tables</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">Reconfigure</property>

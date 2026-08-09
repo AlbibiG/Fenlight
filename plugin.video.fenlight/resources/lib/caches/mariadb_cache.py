@@ -57,6 +57,21 @@ def initialize_history_database():
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
+                CREATE TABLE IF NOT EXISTS historical (
+                    db_type text not null,
+                    media_id text not null,
+                    season integer,
+                    episode integer,
+                    resume_point text,
+                    curr_time text,
+                    last_played text,
+                    resume_id integer,
+                    title text,
+                    profile text,
+                    unique (db_type, media_id, season, episode, last_played, profile)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ''')
+            cursor.execute('''
                 CREATE TABLE IF NOT EXISTS watched (
                     db_type text not null,
                     media_id text not null,
@@ -115,6 +130,16 @@ def reconfigure_history_database():
                 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
+        },
+        'historical': {
+            'columns': {
+                'db_type': 'text not null', 'media_id': 'text not null',
+                'season': 'integer', 'episode': 'integer',
+                'resume_point': 'text', 'curr_time': 'text',
+                'last_played': 'text', 'resume_id': 'integer',
+                'title': 'text', 'profile': 'text'
+            },
+            'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'last_played']
         },
         'watched': {
             'columns': {

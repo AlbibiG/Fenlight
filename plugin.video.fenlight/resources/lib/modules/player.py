@@ -72,6 +72,8 @@ class FenLightPlayer(xbmc.Player):
 			while total_check_time <= 30 and not ku.get_visibility('Window.IsActive(fullscreenvideo)'):
 				ku.sleep(100)
 				total_check_time += 0.10
+			Thread(target=ws.record_historical_playback_start, args=({'media_type': self.media_type, 'tmdb_id': self.tmdb_id,
+																			'title': self.title, 'season': self.season, 'episode': self.episode},)).start()
 			ku.hide_busy_dialog()
 			ku.sleep(1000)
 			while self.isPlayingVideo():
@@ -159,6 +161,10 @@ class FenLightPlayer(xbmc.Player):
 					progress_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
 									'title': self.title, 'season': self.season, 'episode': self.episode, 'from_playback': 'true'}
 					Thread(target=self.run_media_progress, args=(ws.set_bookmark, progress_params)).start()
+				else:
+					stop_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
+								'title': self.title, 'season': self.season, 'episode': self.episode}
+					Thread(target=self.run_media_progress, args=(ws.record_historical_playback_stop, stop_params)).start()
 		except: pass
 
 	def run_media_progress(self, function, params):

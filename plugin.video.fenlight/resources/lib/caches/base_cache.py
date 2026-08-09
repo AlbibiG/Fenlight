@@ -82,7 +82,7 @@ def make_databases():
 
 def connect_database(database_name=None):
 	from modules.settings import watched_indicators
-	if watched_indicators in (0, 1):
+	if watched_indicators in (0, 1) or (database_name not in ('mariadb') and watched_indicators not in (0, 1)):
 		try:
 			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
 			dbcon.execute('PRAGMA synchronous = OFF')

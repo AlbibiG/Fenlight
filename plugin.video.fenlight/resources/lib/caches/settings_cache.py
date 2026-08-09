@@ -185,12 +185,16 @@ def restore_setting_default(params):
 def reconfigure_watch_history_database(params=None):
 	if not kodi_utils.confirm_dialog(text='Reconfigure progress database table?', ok_label='Yes', cancel_label='No', default_control=11):
 		return
-	if settings_cache.get('watched_indicators') == '2':
-		from caches.mariadb_cache import reconfigure_history_database
-	if reconfigure_history_database():
-		kodi_utils.notification('Progress table reconfigured successfully')
-	else:
-		kodi_utils.notification('Progress table reconfiguration failed')
+	try:
+		kodi_utils.logger('Provider for database', settings_cache.get('watched_indicators'))
+		if settings_cache.get('watched_indicators') == '2':
+			from caches.mariadb_cache import reconfigure_history_database
+		if reconfigure_history_database():
+			kodi_utils.notification('Progress table reconfigured successfully')
+		else:
+			kodi_utils.notification('Progress table reconfiguration failed')
+	except Exception as exc:
+		kodi_utils.logger('Error reconfiguring watch history database', str(exc))
 
 def default_setting_values(setting_id):
 	d_settings = default_settings()
@@ -214,15 +218,14 @@ def default_settings():
 #==================== Watched Indicators
 {'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB'}},
 #==================== Watch History Database
-{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
-{'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},
-{'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535'},
-{'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root'},
-{'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': ''},
-{'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight'},
-{'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
-{'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': ''},
-{'setting_id': 'playback.auto_resume', 'setting_type': 'boolean', 'setting_default': 'true'},
+{'setting_id': 'watch_history.enabled', 'setting_type': 'boolean', 'setting_default': 'false', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.username', 'setting_type': 'string', 'setting_default': 'root', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.password', 'setting_type': 'string', 'setting_default': '', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
+{'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': '', 'visible': "get_setting('watched_indicators') not in ('0', '1')"},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
 {'setting_id': 'trakt.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},
@@ -476,6 +479,8 @@ def default_settings():
 {'setting_id': 'playback.limit_resolve', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'playback.volumecheck_enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'playback.volumecheck_percent', 'setting_type': 'action', 'setting_default': '50', 'min_value': '1', 'max_value': '100'},
+{'setting_id': 'playback.auto_resume', 'setting_type': 'boolean', 'setting_default': 'true'},
+
 
 
 #=========================================================================================#

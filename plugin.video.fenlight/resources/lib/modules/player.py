@@ -73,7 +73,7 @@ class FenLightPlayer(xbmc.Player):
 				ku.sleep(100)
 				total_check_time += 0.10
 			Thread(target=ws.record_historical_playback_start, args=({'media_type': self.media_type, 'tmdb_id': self.tmdb_id,
-																			'title': self.title, 'season': self.season, 'episode': self.episode},)).start()
+																			'title': self.title, 'season': self.season, 'episode': self.episode, 'curr_time': self.curr_time, 'total_time': self.total_time})).start()
 			ku.hide_busy_dialog()
 			ku.sleep(1000)
 			while self.isPlayingVideo():

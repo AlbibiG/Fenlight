@@ -64,7 +64,8 @@ def initialize_history_database():
                     episode integer,
                     resume_point text,
                     curr_time text,
-                    last_played text,
+                    started text,
+                    ended text,
                     resume_id integer,
                     play_event text,
                     title text,
@@ -137,10 +138,10 @@ def reconfigure_history_database():
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
-                'last_played': 'text', 'resume_id': 'integer',
+                'started': 'text', 'ended': 'text', 'resume_id': 'integer',
                 'play_event': 'text', 'title': 'text', 'profile': 'text'
             },
-            'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'last_played', 'play_event']
+            'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'started', 'play_event']
         },
         'watched': {
             'columns': {

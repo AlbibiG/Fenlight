@@ -34,7 +34,7 @@ class DatabaseMaintenance:
 		try:
 			from caches.base_cache import make_databases
 			make_databases()
-			if settings.watched_indicators != 0 and settings.watched_indicators != 1:
+			if settings.watched_indicators == 2:
 				from caches.mariadb_cache import initialize_history_database
 				initialize_history_database()
 		except Exception as exc:
@@ -70,6 +70,9 @@ class CustomFonts:
 
 class TraktMonitor:
 	def run(self):
+		from modules.settings import trakt_user_active
+		if not trakt_user_active(): return logger('Fen Light', 'TraktMonitor Service Skipped. User Not Active')
+
 		logger('Fen Light', 'TraktMonitor Service Starting')
 		from apis.trakt_api import trakt_sync_activities
 		from caches.settings_cache import get_setting
@@ -208,9 +211,9 @@ class FenLightMonitor(xbmc.Monitor):
 
 	def startServices(self):
 		SetAddonConstants().run()
-		DatabaseMaintenance().run()
-		SyncSettings().run()
-		ReuseLanguageInvokerCheck().run()
+		Thread(target=DatabaseMaintenance().run).start().join()
+		Thread(target=ReuseLanguageInvokerCheck().run).start().join()
+		Thread(target=SyncSettings().run).start().join()
 		Thread(target=CustomFonts().run).start()
 		Thread(target=TraktMonitor().run).start()
 		Thread(target=UpdateCheck().run).start()

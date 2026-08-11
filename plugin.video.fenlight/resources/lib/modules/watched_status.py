@@ -82,7 +82,7 @@ def _record_historical_plays_batch(dbcon, insert_list):
 	try:
 		for item in insert_list:
 			media_type, media_id, season, episode, title = item
-			_record_historical_play(dbcon, media_type, media_id, season, episode, title, started=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='watched', batch=True)
+			_record_historical_play(dbcon, media_type=media_type, media_id=media_id, season=season, episode=episode, title=title, started=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='watched', batch=True)
 	except Exception as e:
 		logger('Error recording historical batch plays:', str(e))
 
@@ -103,13 +103,13 @@ def record_historical_playback_start(params):
 		except:
 			resume_point = 0.0
 		dbcon = get_database(2)
-		_record_historical_play(dbcon, media_type, media_id, season, episode, title, started, ended='', play_event='started', resume_point=resume_point, curr_time=curr_time, resume_id=0)
+		_record_historical_play(dbcon=dbcon, media_type=media_type, media_id=media_id, season=season, episode=episode, title=title, started=started, ended='', play_event='started', resume_point=resume_point, curr_time=curr_time, resume_id=0)
 	except Exception as e:
 		logger('Error recording playback start:', str(e))
 
 def record_historical_playback_stop(params):
 	try:
-		if settings.watched_indicators() != 2: return
+		if settings.watched_indicators() == 0 or settings.watched_indicators() == 1: return
 		media_type = params.get('media_type')
 		media_id = params.get('tmdb_id')
 		title = params.get('title', '')
@@ -123,7 +123,7 @@ def record_historical_playback_stop(params):
 		except:
 			resume_point = 0.0
 		dbcon = get_database(2)
-		_record_historical_play(dbcon, media_type, media_id, season, episode, title=title, ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='stopped', resume_point=resume_point, curr_time=curr_time, resume_id=0)
+		_record_historical_play(dbcon=dbcon, media_type=media_type, media_id=media_id, season=season, episode=episode, title=title, ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='stopped', resume_point=resume_point, curr_time=curr_time, resume_id=0)
 	except Exception as e:
 		logger('Error recording playback stop:', str(e))
 

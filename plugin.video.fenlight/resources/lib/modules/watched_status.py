@@ -55,7 +55,9 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 
 def _record_historical_play(dbcon, media_type, media_id, season, episode, title, started, ended, play_event='watched', resume_point='', curr_time='', resume_id=0, batch=False):
 	try:
+		logger('Record', 'Historical Play: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (media_type, media_id, season, episode, title, started, ended, play_event, resume_point, curr_time))
 		if play_event == 'started':
+			logger('Start', 'Check 2')
 			dbcon.execute('''INSERT IGNORE INTO historical
 						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, started, play_event, ended, resume_id, title, profile)
 						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -68,6 +70,7 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, started, play_event, ended, int(resume_id), title,
 						settings.watch_history_profile_name()))
 		else:
+			logger('Stop', 'Check 2')
 			dbcon.execute('''UPDATE historical
 						SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
 						WHERE db_type = ? AND media_id = ? AND season = ? AND episode = ? AND profile = ? AND play_event = 'started'
@@ -97,6 +100,7 @@ def record_historical_playback_start(params):
 		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
+		logger('Start', 'Check 1')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -117,6 +121,7 @@ def record_historical_playback_stop(params):
 		episode = params.get('episode')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
+		logger('Stop', 'Check 1')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0

@@ -269,8 +269,10 @@ def title_key(title):
 	except: return title
 
 def sort_for_article(_list, _key):
-	_list.sort(key=lambda k: re.sub(r'(^the |^a |^an )', '', k[_key].lower()))
-	return _list
+    if not isinstance(_list, list):
+        _list = list(_list)
+    _list.sort(key=lambda k: re.sub(r'(^the |^a |^an )', '', k[_key].lower()))
+    return _list
 	
 def sort_list(sort_key, sort_direction, list_data):
 	try:

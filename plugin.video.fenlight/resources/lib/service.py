@@ -211,13 +211,13 @@ class FenLightMonitor(xbmc.Monitor):
 
 	def startServices(self):
 		SetAddonConstants().run()
-		#DatabaseMaintenance().run()
+		DatabaseMaintenance().run()
 		SyncSettings().run()
 		ReuseLanguageInvokerCheck().run()
+		Thread(target=WidgetRefresher().run).start()
 		Thread(target=CustomFonts().run).start()
 		Thread(target=TraktMonitor().run).start()
 		Thread(target=UpdateCheck().run).start()
-		Thread(target=WidgetRefresher().run).start()
 		AutoStart().run()
 
 	def onNotification(self, sender, method, data):

@@ -59,15 +59,15 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 		if play_event == 'started':
 			logger('Start', 'Check 2')
 			dbcon.execute('''INSERT IGNORE INTO historical
-						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, started, play_event, ended, resume_id, title, profile)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, started, play_event, ended, int(resume_id), title,
+						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
 						settings.watch_history_profile_name()))
 		elif batch == True:
 			dbcon.execute('''INSERT IGNORE INTO historical
-						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, started, play_event, ended, resume_id, title, profile)
+						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
 						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, started, play_event, ended, int(resume_id), title,
+						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
 						settings.watch_history_profile_name()))
 		else:
 			logger('Stop', 'Check 2')
@@ -76,7 +76,7 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 						WHERE db_type = ? AND media_id = ? AND season = ? AND episode = ? AND profile = ? AND play_event = 'started'
 						ORDER BY last_played DESC
 						LIMIT 1''',
-						(str(resume_point), str(curr_time), started, ended, int(resume_id), title, play_event,
+						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
 						media_type, media_id, season, episode, settings.watch_history_profile_name()))
 	except Exception as e:
 		logger('Error recording historical play', str(e))
@@ -91,7 +91,7 @@ def _record_historical_plays_batch(dbcon, insert_list):
 
 def record_historical_playback_start(params):
 	try:
-		if settings.watched_indicators() != 2: return
+		if settings.watched_indicators() == 0 or settings.watched_indicators() == 1: return
 		media_type = params.get('media_type')
 		media_id = params.get('tmdb_id')
 		title = params.get('title', '')

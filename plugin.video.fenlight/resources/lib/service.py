@@ -211,9 +211,19 @@ class FenLightMonitor(xbmc.Monitor):
 
 	def startServices(self):
 		SetAddonConstants().run()
-		Thread(target=DatabaseMaintenance().run).start().join()
-		Thread(target=ReuseLanguageInvokerCheck().run).start().join()
-		Thread(target=SyncSettings().run).start().join()
+        
+		t_db = Thread(target=DatabaseMaintenance().run)
+		t_invoker = Thread(target=ReuseLanguageInvokerCheck().run)
+		t_sync = Thread(target=SyncSettings().run)
+
+		t_db.start()
+		t_invoker.start()
+		t_sync.start()
+
+		t_db.join()
+		t_invoker.join()
+		t_sync.join()
+
 		Thread(target=CustomFonts().run).start()
 		Thread(target=TraktMonitor().run).start()
 		Thread(target=UpdateCheck().run).start()

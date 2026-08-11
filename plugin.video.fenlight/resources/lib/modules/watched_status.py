@@ -57,7 +57,6 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 	try:
 		logger('Record', 'Historical Play: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (media_type, media_id, season, episode, title, started, ended, play_event, resume_point, curr_time))
 		if play_event == 'started':
-			logger('Start', 'Check 2')
 			dbcon.execute('''INSERT IGNORE INTO historical
 						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
 						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -100,7 +99,6 @@ def record_historical_playback_start(params):
 		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		logger('Start', 'Check 1')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -128,7 +126,7 @@ def record_historical_playback_stop(params):
 		except:
 			resume_point = 0.0
 		dbcon = get_database(2)
-		_record_historical_play(dbcon=dbcon, media_type=media_type, media_id=media_id, season=season, episode=episode, title=title, ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='stopped', resume_point=resume_point, curr_time=curr_time, resume_id=0)
+		_record_historical_play(dbcon=dbcon, media_type=media_type, media_id=media_id, season=season, episode=episode, title=title, started='', ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), play_event='stopped', resume_point=resume_point, curr_time=curr_time, resume_id=0)
 	except Exception as e:
 		logger('Error recording playback stop:', str(e))
 

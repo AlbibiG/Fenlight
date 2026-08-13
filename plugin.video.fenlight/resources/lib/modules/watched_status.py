@@ -546,13 +546,22 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
-				dbcon.executemany('INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', {insert_list, settings.watch_history_profile_name()})
+				profile_name = settings.watch_history_profile_name()
+				params = [item + (profile_name,) for item in insert_list]
+				dbcon.executemany(
+					"INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)", params
+				)
 				_record_historical_plays_batch(dbcon, insert_list)
 			else:
-				dbcon.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
+				dbcon.executemany(
+					"INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)",
+					insert_list,
+				)
 		elif action == 'mark_as_unwatched':
 			if watched_indicators == 2:
-				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', {insert_list, settings.watch_history_profile_name()})
+				profile_name = settings.watch_history_profile_name()
+				params = [item + (profile_name,) for item in insert_list]
+				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', params)
 			else:
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)

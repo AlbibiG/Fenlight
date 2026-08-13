@@ -7,6 +7,7 @@ if str(LIB) not in sys.path:
     sys.path.insert(0, str(LIB))
 
 from modules import watched_status
+from caches import mariadb_cache
 
 
 class FakeDB:
@@ -43,3 +44,35 @@ def test_batch_watched_status_marks_append_profile_for_mariadb(monkeypatch):
         ('episode', 123, 1, 2, '2024-01-01 00:00:00', 'Show Title', 'profile_1'),
         ('episode', 123, 1, 3, '2024-01-01 00:00:00', 'Show Title', 'profile_1'),
     ]
+
+
+def test_mariadb_connect_reuses_connection_pool(monkeypatch):
+    created = []
+
+    class FakeConnection:
+        def __init__(self):
+            self.open = True
+            self.closed = False
+
+        def ping(self, reconnect=True):
+            self.open = True
+
+        def close(self):
+            self.open = False
+            self.closed = True
+
+    def fake_connect(**kwargs):
+        created.append(kwargs)
+        return FakeConnection()
+
+    monkeypatch.setattr(mariadb_cache.pymysql, 'connect', fake_connect)
+    monkeypatch.setattr(mariadb_cache, '_pool', None)
+
+    first = mariadb_cache.connect()
+    second = mariadb_cache.connect()
+    first.close()
+    third = mariadb_cache.connect()
+
+    assert first is not second
+    assert third._connection is first._connection
+    assert len(created) == 2

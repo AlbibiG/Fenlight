@@ -53,16 +53,10 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 	if action == 'mark_as_watched': return (media_type, media_id, season, episode, last_played, title)
 	else: return (media_type, media_id, season, episode)
 
-def _record_historical_play(dbcon, media_type, media_id, season, episode, title, started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0, batch=False):
+def _record_historical_play(dbcon, media_type, media_id, season, episode, title, started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
 	try:
 		logger('Record', 'Historical Play: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (media_type, media_id, season, episode, title, started, ended, play_event, resume_point, curr_time))
 		if play_event == 'started':
-			dbcon.execute('''INSERT IGNORE INTO historical
-						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
-						settings.watch_history_profile_name()))
-		elif batch == True:
 			dbcon.execute('''INSERT IGNORE INTO historical
 						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
 						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -80,27 +74,54 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 		logger('Error recording historical play', str(e))
 
 def _record_historical_plays_batch(dbcon, insert_list):
-	try:
-		for item in insert_list:
-			media_type = item[0]
-			media_id = item[1]
-			season = item[2]
-			episode = item[3]
-			time = item[4]
-			title = item[5]
-		_record_historical_play(
-			dbcon, 
-			media_type=media_type, 
-			media_id=media_id, 
-			season=season, 
-			episode=episode, 
-			title=title, 
-			started=time, 
-			ended=time, 
-			play_event='watched', 
-			batch=True)
-	except Exception as e:
-		logger('Error recording historical batch plays:', str(e))
+  try:
+    if not insert_list:
+      return
+
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    profile_name = settings.watch_history_profile_name()
+    batch_params = []
+
+    for item in insert_list:
+      media_type = item[0]
+      media_id = item[1]
+      season = item[2]
+      episode = item[3]
+
+      # Handle optional fields based on tuple length (from make_batch_insert)
+      if len(item) >= 6:
+        started_ended_time = item[4]
+        title = item[5]
+      else:
+        started_ended_time = current_time
+        title = None
+
+      # Append the row tuple to our batch list
+      batch_params.append((
+          media_type,
+          media_id,
+          season,
+          episode,
+          "0",  # resume_point default
+          "0",  # curr_time default
+          started_ended_time,
+          started_ended_time,
+          "watched",
+          0,  # resume_id default
+          title,
+          profile_name,
+      ))
+
+    # Execute the entire batch efficiently in one query
+    dbcon.executemany(
+        """INSERT IGNORE INTO historical
+            (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        batch_params,
+    )
+
+  except Exception as e:
+    logger("Error recording historical batch plays:", str(e))
 
 def record_historical_playback_start(params):
 	try:
@@ -371,25 +392,28 @@ def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='fal
 	except: pass
 
 def batch_erase_bookmark(watched_indicators, insert_list, action):
-	try:
-		watched_db = get_database(watched_indicators)
-		if action == 'mark_as_watched': modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list]
-		else: modified_list = insert_list
-		if watched_indicators == 1:
-			def _process():
-				for i in insert_list:
-					try:
-						media_id, season, episode = i[1], i[2], i[3]
-						resume_id = get_bookmarks_episode(str(media_id), season, watched_db)[int(episode)]['resume_id']
-						sleep(1000)
-						trakt_progress('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id)
-					except: pass
-			Thread(target=_process).start()
-		if watched_indicators == 2:
-			watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?', {modified_list, settings.watch_history_profile_name()})
-		else: 
-			watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
-	except: pass
+    try:
+        watched_db = get_database(watched_indicators)
+        modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list] if action == 'mark_as_watched' else insert_list
+        
+        if watched_indicators == 1:
+            def _process():
+                for i in insert_list:
+                    try:
+                        # Streamline parameter passing
+                        resume_id = get_bookmarks_episode(str(i[1]), i[2], watched_db)[int(i[3])]['resume_id']
+                        sleep(1000)
+                        trakt_progress('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id)
+                    except: pass
+            Thread(target=_process).start()
+            
+        if watched_indicators == 2:
+            profile_name = settings.watch_history_profile_name()
+            params = [item + (profile_name,) for item in modified_list]
+            watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?', params)
+        else: 
+            watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
+    except: pass
 
 def set_bookmark(params):
 	try:
@@ -551,7 +575,7 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 				dbcon.executemany(
 					"INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)", params
 				)
-				_record_historical_plays_batch(dbcon, insert_list)
+				_record_historical_plays_batch(dbcon, params)
 			else:
 				dbcon.executemany(
 					"INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)",

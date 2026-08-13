@@ -1,6 +1,75 @@
+import threading
+from collections import deque
+
 import pymysql
 import xbmc
 from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name
+
+_pool = None
+_pool_lock = threading.Lock()
+
+
+class _PooledConnection:
+    def __init__(self, pool, connection):
+        self._pool = pool
+        self._connection = connection
+
+    def __getattr__(self, name):
+        return getattr(self._connection, name)
+
+    def close(self):
+        if self._pool is None:
+            return self._connection.close()
+        try:
+            self._connection.ping(reconnect=True)
+        except Exception:
+            try:
+                self._connection.close()
+            except Exception:
+                pass
+            return
+        self._pool.release(self._connection)
+
+    def cursor(self, *args, **kwargs):
+        return self._connection.cursor(*args, **kwargs)
+
+    def commit(self):
+        return self._connection.commit()
+
+    def rollback(self):
+        return self._connection.rollback()
+
+
+class ConnectionPool:
+    def __init__(self, max_connections=5):
+        self.max_connections = max_connections
+        self._available = deque()
+
+    def get(self):
+        with _pool_lock:
+            if self._available:
+                connection = self._available.popleft()
+                return _PooledConnection(self, connection)
+            return _PooledConnection(self, pymysql.connect(**get_connection_config()))
+
+    def release(self, connection):
+        with _pool_lock:
+            if len(self._available) < self.max_connections:
+                self._available.append(connection)
+            else:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+
+
+def get_pool():
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                _pool = ConnectionPool()
+    return _pool
 
 def _log_error(message):
     try:
@@ -25,9 +94,8 @@ def get_connection_config():
 
 
 def connect():
-    config = get_connection_config()
     try:
-        return pymysql.connect(**config)
+        return get_pool().get()
     except Exception as exc:
         _log_error('Watch History DB connection failed: %s' % exc)
         raise

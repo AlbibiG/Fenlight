@@ -3,7 +3,7 @@ import sys
 from modules.metadata import tvshow_meta
 from modules.utils import get_datetime, get_current_timestamp, paginate_list, TaskPool, manual_function_import
 from modules import kodi_utils, settings, watched_status
-# logger = kodi_utils.logger
+from modules.kodi_utils import logger
 
 class TVShows:
 	main = ('tmdb_tv_popular', 'tmdb_tv_popular_today', 'tmdb_tv_premieres', 'tmdb_tv_airing_today','tmdb_tv_on_the_air', 'tmdb_tv_upcoming',
@@ -217,7 +217,8 @@ class TVShows:
 				'fenlight.favorites_manager_params': favorites_manager_params
 				})
 			self.append(((url_params, listitem, self.is_folder), _position))
-		except: pass
+		except Exception as e: 
+			logger('Error building tvshow content', str(e))
 
 	def worker(self):
 		self.kodi_actor, self.make_listitem, self.build_url = kodi_utils.kodi_actor(), kodi_utils.make_listitem, kodi_utils.build_url

@@ -431,68 +431,74 @@ def mark_movie(params):
 	refresh_container(refresh)
 
 def mark_tvshow(params):
-	title, action, tmdb_id = params.get('title', ''), params.get('action'), params.get('tmdb_id')
-	try: tvdb_id = int(params.get('tvdb_id', '0'))
-	except: tvdb_id = 0
-	watched_indicators = settings.watched_indicators()
-	progress_backround = kodi_progress_background()
-	progress_backround.create('[B]Please Wait..[/B]', '')
-	if watched_indicators == 1:
-		if not trakt_watched_status_mark(action, 'shows', tmdb_id, tvdb_id): return notification('Error')
-		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	current_date = get_datetime()
-	insert_list = []
-	insert_append = insert_list.append
-	meta = metadata.tvshow_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
-	season_data = meta['season_data']
-	season_data = [i for i in season_data if i['season_number'] > 0]
-	total = len(season_data)
-	last_played = get_last_played_value(watched_indicators)
-	for count, item in enumerate(season_data, 1):
-		season_number = item['season_number']
-		ep_data = metadata.episodes_meta(season_number, meta)
-		for ep in ep_data:
-			season_number = ep['season']
-			ep_number = ep['episode']
-			display = '%s - S%.2dE%.2d' % (title, int(season_number), int(ep_number))
-			progress_backround.update(int(float(count)/float(total)*100), '[B]Please Wait..[/B]', display)
-			episode_date, premiered = adjust_premiered_date(ep['premiered'], settings.date_offset())
-			if episode_date and current_date < episode_date: continue
-			insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
-	batch_watched_status_mark(watched_indicators, insert_list, action)
-	progress_backround.close()
-	refresh_container()
+	try:
+		title, action, tmdb_id = params.get('title', ''), params.get('action'), params.get('tmdb_id')
+		try: tvdb_id = int(params.get('tvdb_id', '0'))
+		except: tvdb_id = 0
+		watched_indicators = settings.watched_indicators()
+		progress_backround = kodi_progress_background()
+		progress_backround.create('[B]Please Wait..[/B]', '')
+		if watched_indicators == 1:
+			if not trakt_watched_status_mark(action, 'shows', tmdb_id, tvdb_id): return notification('Error')
+			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		current_date = get_datetime()
+		insert_list = []
+		insert_append = insert_list.append
+		meta = metadata.tvshow_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
+		season_data = meta['season_data']
+		season_data = [i for i in season_data if i['season_number'] > 0]
+		total = len(season_data)
+		last_played = get_last_played_value(watched_indicators)
+		for count, item in enumerate(season_data, 1):
+			season_number = item['season_number']
+			ep_data = metadata.episodes_meta(season_number, meta)
+			for ep in ep_data:
+				season_number = ep['season']
+				ep_number = ep['episode']
+				display = '%s - S%.2dE%.2d' % (title, int(season_number), int(ep_number))
+				progress_backround.update(int(float(count)/float(total)*100), '[B]Please Wait..[/B]', display)
+				episode_date, premiered = adjust_premiered_date(ep['premiered'], settings.date_offset())
+				if episode_date and current_date < episode_date: continue
+				insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
+		batch_watched_status_mark(watched_indicators, insert_list, action)
+		progress_backround.close()
+		refresh_container()
+	except Exception as e:
+		logger('Error marking tvshow', str(e))
 
 def mark_season(params):
-	season = int(params.get('season'))
-	if season == 0: return notification('Failed')
-	insert_list = []
-	insert_append = insert_list.append
-	action, title, tmdb_id = params.get('action'), params.get('title'), params.get('tmdb_id')
-	try: tvdb_id = int(params.get('tvdb_id', '0'))
-	except: tvdb_id = 0
-	watched_indicators = settings.watched_indicators()
-	heading = '[B]Mark Watched %s[/B]' if action == 'mark_as_watched' else '[B]Mark Unwatched %s[/B]'
-	if watched_indicators == 1:
-		if not trakt_watched_status_mark(action, 'season', tmdb_id, tvdb_id, season): return notification('Error')
-		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	progress_backround = kodi_progress_background()
-	progress_backround.create('[B]Please Wait..[/B]', '')
-	current_date = get_datetime()
-	meta = metadata.tvshow_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
-	ep_data = metadata.episodes_meta(season, meta)
-	last_played = get_last_played_value(watched_indicators)
-	for count, item in enumerate(ep_data, 1):
-		season_number = item['season']
-		ep_number = item['episode']
-		display = '%s - S%.2dE%.2d' % (title, season_number, ep_number)
-		episode_date, premiered = adjust_premiered_date(item['premiered'], settings.date_offset())
-		if episode_date and current_date < episode_date: continue
-		progress_backround.update(int(float(count) / float(len(ep_data)) * 100), '[B]Please Wait..[/B]', display)
-		insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
-	batch_watched_status_mark(watched_indicators, insert_list, action)
-	progress_backround.close()
-	refresh_container()
+	try:
+		season = int(params.get('season'))
+		if season == 0: return notification('Failed')
+		insert_list = []
+		insert_append = insert_list.append
+		action, title, tmdb_id = params.get('action'), params.get('title'), params.get('tmdb_id')
+		try: tvdb_id = int(params.get('tvdb_id', '0'))
+		except: tvdb_id = 0
+		watched_indicators = settings.watched_indicators()
+		heading = '[B]Mark Watched %s[/B]' if action == 'mark_as_watched' else '[B]Mark Unwatched %s[/B]'
+		if watched_indicators == 1:
+			if not trakt_watched_status_mark(action, 'season', tmdb_id, tvdb_id, season): return notification('Error')
+			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		progress_backround = kodi_progress_background()
+		progress_backround.create('[B]Please Wait..[/B]', '')
+		current_date = get_datetime()
+		meta = metadata.tvshow_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
+		ep_data = metadata.episodes_meta(season, meta)
+		last_played = get_last_played_value(watched_indicators)
+		for count, item in enumerate(ep_data, 1):
+			season_number = item['season']
+			ep_number = item['episode']
+			display = '%s - S%.2dE%.2d' % (title, season_number, ep_number)
+			episode_date, premiered = adjust_premiered_date(item['premiered'], settings.date_offset())
+			if episode_date and current_date < episode_date: continue
+			progress_backround.update(int(float(count) / float(len(ep_data)) * 100), '[B]Please Wait..[/B]', display)
+			insert_append(make_batch_insert(action, 'episode', tmdb_id, season_number, ep_number, last_played, title))
+		batch_watched_status_mark(watched_indicators, insert_list, action)
+		progress_backround.close()
+		refresh_container()
+	except Exception as e:
+		logger('Error marking season', str(e))
 
 def mark_episode(params):
 	season, episode, title = int(params.get('season')), int(params.get('episode')), params.get('title')

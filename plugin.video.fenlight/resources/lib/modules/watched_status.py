@@ -12,6 +12,23 @@ def get_database(watched_indicator=None):
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
 
+
+def _is_mariadb(watched_indicators=None):
+	indicator = watched_indicators if watched_indicators is not None else settings.watched_indicators()
+	return indicator == 2
+
+
+def _watch_profile_name(watched_indicators=None):
+	if _is_mariadb(watched_indicators):
+		return settings.watch_history_profile_name()
+	return None
+
+
+def _profile_params(params, watched_indicators=None):
+	profile_name = _watch_profile_name(watched_indicators)
+	return params + (profile_name,) if profile_name is not None else params
+
+
 def get_hidden_progress_items(watched_indicators):
 	try:
 		if watched_indicators != 1:
@@ -222,16 +239,17 @@ def active_tvshows_information(status_type):
 
 def watched_info_movie(watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
 		try:
-			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?', ('movie', settings.watch_history_profile_name())).fetchall()
+			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?',
+				('movie', _watch_profile_name(watched_indicators))).fetchall()
 			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
 		except: return {}
-	else:
-		try:
-			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
-			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
-		except: return {}
+	try:
+		watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
+		return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
+	except: return {}
 
 def get_watched_status_movie(watched_info, media_id):
 	if not watched_info: return 0
@@ -242,16 +260,18 @@ def get_watched_status_movie(watched_info, media_id):
 
 def get_bookmarks_movie(watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
 		try:
-			info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ? and profile = ?', ('movie', settings.watch_history_profile_name())).fetchall()
+			info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ? and profile = ?',
+				('movie', _watch_profile_name(watched_indicators))).fetchall()
 			info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
 		except: info = {}
-	else: 
-		try:
-			info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
-			info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
-		except: info = {}
+		return info
+	try:
+		info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
+		info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
+	except: info = {}
 	return info
 
 def get_progress_status_movie(progress_info, media_id):
@@ -261,18 +281,19 @@ def get_progress_status_movie(progress_info, media_id):
 
 def watched_info_tvshow(watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
 		try:
 			data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
-									('episode', settings.watch_history_profile_name())).fetchall()
+					('episode', _watch_profile_name(watched_indicators))).fetchall()
 			return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
 		except: return {}
-	else:
-		try:
-			data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id',
-									('episode',)).fetchall()
-			return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
-		except: return {}
+	try:
+		data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id',
+			('episode',)).fetchall()
+		return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
+	except: return {}
+
 
 def get_watched_status_tvshow(watched_info, aired_eps):
 	if not watched_info: return 0, 0, aired_eps
@@ -291,14 +312,15 @@ def get_progress_status_tvshow(watched, aired_eps):
 
 def watched_info_season(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
 		try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
-								('episode', str(media_id), settings.watch_history_profile_name())).fetchall())
+								('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall())
 		except: watched_info = {}
-	else:
-		try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season',
+		return watched_info
+	try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season',
 								('episode', str(media_id))).fetchall())
-		except: watched_info = {}
+	except: watched_info = {}
 	return watched_info
 
 def get_watched_status_season(watched_info, aired_eps):
@@ -318,12 +340,14 @@ def get_progress_status_season(watched, aired_eps):
 
 def watched_info_episode(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
-		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?', ('episode', str(media_id), settings.watch_history_profile_name())).fetchall()
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
+		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?',
+				('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall()
 		except: watched_info = []
-	else:
-		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
-		except: watched_info = []
+		return watched_info
+	try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
+	except: watched_info = []
 	return watched_info
 
 def get_watched_status_episode(watched_info, season_episode):
@@ -332,18 +356,19 @@ def get_watched_status_episode(watched_info, season_episode):
 
 def get_bookmarks_episode(media_id, season, watched_db=None):
 	if not watched_db: watched_db = get_database()
-	if settings.watched_indicators() == 2:
+	watched_indicators = settings.watched_indicators()
+	if _is_mariadb(watched_indicators):
 		try:
 			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
-				('episode', str(media_id), int(season), settings.watch_history_profile_name())).fetchall()
+				('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
 			info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
 		except: info = {}
-	else:
-		try:
-			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
-				('episode', str(media_id), int(season))).fetchall()
-			info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
-		except: info = {}
+		return info
+	try:
+		info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
+			('episode', str(media_id), int(season))).fetchall()
+		info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
+	except: info = {}
 	return info
 
 def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):

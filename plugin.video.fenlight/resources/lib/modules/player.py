@@ -152,6 +152,10 @@ class FenLightPlayer(xbmc.Player):
 	def media_watched_marker(self, force_watched=False):
 		self.media_marked = True
 		try:
+			if force_watched:
+				stop_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 
+					'total_time': self.total_time, 'title': self.title, 'season': self.season, 'episode': self.episode}
+				Thread(target=self.run_media_progress, args=(ws.record_historical_playback_stop, stop_params)).start()
 			if self.current_point >= 90 or force_watched:
 				watched_function = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
 				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'season': self.season, 'episode': self.episode,
@@ -163,9 +167,7 @@ class FenLightPlayer(xbmc.Player):
 					progress_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
 									'title': self.title, 'season': self.season, 'episode': self.episode, 'from_playback': 'true'}
 					Thread(target=self.run_media_progress, args=(ws.set_bookmark, progress_params)).start()
-				stop_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
-							'title': self.title, 'season': self.season, 'episode': self.episode}
-				Thread(target=self.run_media_progress, args=(ws.record_historical_playback_stop, stop_params)).start()
+
 		except: pass
 
 	def run_media_progress(self, function, params):

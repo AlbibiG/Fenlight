@@ -556,7 +556,9 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 			else:
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
-	except: notification('Error')
+	except Exception as e:
+		notification('Error')
+		logger('Error in batch_watched_status_mark', str(e))
 
 def get_next_episodes(nextep_content):
 	watched_db = get_database()

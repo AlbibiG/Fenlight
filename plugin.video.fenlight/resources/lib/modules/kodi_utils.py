@@ -155,6 +155,8 @@ def logger(function, notification_message='', severity=None, notify=True, error_
 		return
 	level = 4 if severity == 'high' else 2
 	xbmc.log('###Fen Light %s###: %s - %s' % (severity.upper(), function, error_message), level)
+	if notification_message == '':
+		notification_message = error_message
 	if notify:
 		color = {'high': 'red', 'medium': 'yellow', 'low': 'white'}[severity]
 		notification('[COLOR %s]%s[/COLOR] %s' % (color, severity.upper(), notification_message), 5000, addon_icon())

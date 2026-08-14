@@ -445,6 +445,7 @@ def mark_movie(params):
 			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
 			elif not trakt_watched_status_mark(action, 'movies', tmdb_id): return notification('Error')
 			clear_trakt_collection_watchlist_data('watchlist', media_type)
+		params['media_type'] = media_type
 		watched_status_mark(params)
 		refresh_container(refresh)
 	except Exception as e:
@@ -534,6 +535,7 @@ def mark_episode(params):
 			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
 			elif not trakt_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode): return notification('Error')
 			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		params['media_type'] = 'episode'
 		watched_status_mark(params)
 		update_hidden_progress(tmdb_id)
 		refresh_container(refresh)
@@ -541,7 +543,7 @@ def mark_episode(params):
 		logger('mark_episode', severity='medium', error_message=str(e))
 
 def watched_status_mark(params):
-	logger('watched_status_mark', params)
+	logger('watched_status_mark', notification_message=str(params))
 	watched_indicators = settings.watched_indicators()
 	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season'), params.get('episode'), params.get('title')
 	try:

@@ -154,12 +154,13 @@ class FenLightPlayer(xbmc.Player):
 		try:
 			if force_watched:
 				stop_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 
-					'total_time': self.total_time, 'title': self.title, 'season': self.season, 'episode': self.episode}
+					'total_time': self.total_time, 'title': self.title, 'season': self.season, 'episode': self.episode,
+					'play_event': 'watched'}
 				Thread(target=self.run_media_progress, args=(ws.record_historical_playback_stop, stop_params)).start()
 			if self.current_point >= 90 or force_watched:
 				watched_function = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
 				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'season': self.season, 'episode': self.episode,
-									'tvdb_id': self.tvdb_id, 'from_playback': 'true'}
+									'tvdb_id': self.tvdb_id, 'from_playback': 'true', 'media_type': self.media_type, 'curr_time': self.curr_time, 'total_time': self.total_time}
 				Thread(target=self.run_media_progress, args=(watched_function, watched_params)).start()
 			else:
 				ku.clear_property('fenlight.random_episode_history')

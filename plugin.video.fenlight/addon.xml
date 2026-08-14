@@ -1,4 +1,4 @@
-<addon id="plugin.video.fenlight" name="FenLightAG" provider-name="Tikipeter/AlbibiG" version="0.0.89">
+<addon id="plugin.video.fenlight" name="FenLightAG" provider-name="Tikipeter/AlbibiG" version="0.0.90">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
         <import addon="script.module.pil" version="1.1.7"/>

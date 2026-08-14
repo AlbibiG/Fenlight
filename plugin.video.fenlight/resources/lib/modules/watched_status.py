@@ -541,9 +541,9 @@ def mark_episode(params):
 		logger('mark_episode', severity='medium', error_message=str(e))
 
 def watched_status_mark(params):
+	logger('watched_status_mark', params)
 	watched_indicators = settings.watched_indicators()
 	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season'), params.get('episode'), params.get('title')
-	logger('watched_status_mark', params)
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)

@@ -547,7 +547,7 @@ def mark_episode(params):
 		logger('mark_episode', severity='medium', error_message=str(e))
 
 def watched_status_mark(params):
-	logger('watched_status_mark', notification_message=str(params))
+	logger('watched_status_mark', severity='low',notification_message=str(params))
 	watched_indicators = settings.watched_indicators()
 	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season'), params.get('episode'), params.get('title')
 	try:

@@ -154,6 +154,10 @@ def record_historical_playback_stop(params):
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
 		except:
 			resume_point = 0.0
+		if resume_point >= 90.0: 
+			play_event = 'watched' 
+		else: 
+			play_event = 'stopped'
 		dbcon = get_database(2)
 		_record_historical_play(
 			dbcon=dbcon, 
@@ -163,7 +167,7 @@ def record_historical_playback_stop(params):
 			episode=episode, 
 			title=title,
 			ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
-			play_event='stopped', 
+			play_event=play_event, 
 			resume_point=resume_point, 
 			curr_time=curr_time, 
 			resume_id=0)

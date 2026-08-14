@@ -143,14 +143,9 @@ def append_path(_path):
 	import sys
 	sys.path.append(translatePath(_path))
 
-def debug_enabled():
-	return get_property('fenlight.debug_enabled') == 'true'
-
 def logger(function, notification_message='', severity=None, notify=True, error_message=''):
-	severity = str(severity).lower() if severity else None
-	if severity not in (None, 'high', 'medium', 'low'):
-		severity = None
 	if severity is None:
+		from modules.settings import debug_enabled
 		if debug_enabled(): xbmc.log('###Fen Light Debugger###: %s - %s - %s' % (function, notification_message, error_message), 0)
 		return
 	level = 4 if severity == 'high' else 2

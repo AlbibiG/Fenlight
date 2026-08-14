@@ -192,7 +192,6 @@ def reconfigure_watch_history_database(params=None):
 		return
 	try:
 		from modules.settings import watched_indicators
-		kodi_utils.logger('Provider for database', watched_indicators())
 		if watched_indicators() == 2:
 			from caches.mariadb_cache import reconfigure_history_database
 		if reconfigure_history_database():
@@ -200,8 +199,7 @@ def reconfigure_watch_history_database(params=None):
 		else:
 			kodi_utils.notification('Progress table reconfiguration failed')
 	except Exception as exc:
-		kodi_utils.notification('Error reconfiguring watch history database')
-		kodi_utils.logger('Error reconfiguring watch history database', str(exc))
+		kodi_utils.logger(function='reconfigure_watch_history_database', severity='high', notify=True, error_message=str(exc))
 
 def default_setting_values(setting_id):
 	d_settings = default_settings()
@@ -214,6 +212,7 @@ def default_settings():
 #===============================================================================#
 #==================== General
 {'setting_id': 'auto_start_fenlight', 'setting_type': 'boolean', 'setting_default': 'false'},
+{'setting_id': 'debug_enabled', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'default_addon_fanart', 'setting_type': 'path', 'setting_default': kodi_utils.addon_fanart(), 'browse_mode': '2'},
 {'setting_id': 'limit_concurrent_threads', 'setting_type': 'boolean', 'setting_default': 'false'},
 {'setting_id': 'max_threads', 'setting_type': 'action', 'setting_default': '60', 'min_value': '10', 'max_value': '250'},

@@ -313,4 +313,4 @@ def routing(sys):
 			from modules.kodi_utils import external_scraper_settings
 			external_scraper_settings()
 	except Exception as e:
-		logger('Error in routing', str(e))
+		logger('routing', severity='high', error_message=str(e))

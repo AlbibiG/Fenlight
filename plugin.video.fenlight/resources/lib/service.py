@@ -3,6 +3,7 @@ import xbmc, xbmcgui
 import json
 from threading import Thread
 from modules import settings
+from modules.kodi_utils import logger
 
 pause_services_prop = 'fenlight.pause_services'
 firstrun_update_prop = 'fenlight.firstrun_update'
@@ -11,12 +12,9 @@ trakt_service_string = 'TraktMonitor Service Update %s - %s'
 trakt_success_line_dict = {'success': 'Trakt Update Performed', 'no account': '(Unauthorized) Trakt Update Performed'}
 update_string = 'Next Update in %s minutes...'
 
-def logger(heading, function):
-	xbmc.log('###%s###: %s' % (heading, function), 1)
-
 class SetAddonConstants:
 	def run(self):
-		logger('Fen Light', 'SetAddonConstants Service Starting')
+		logger('SetAddonConstants', 'Service Starting')
 		import xbmcaddon, xbmcvfs
 		window = xbmcgui.Window(10000)
 		_info = xbmcaddon.Addon('plugin.video.fenlight').getAddonInfo
@@ -26,11 +24,11 @@ class SetAddonConstants:
 					('fenlight.addon_icon', xbmcvfs.translatePath(_info('icon'))),
 					('fenlight.addon_fanart', xbmcvfs.translatePath(_info('fanart')))]
 		for item in addon_items: window.setProperty(*item)
-		return logger('Fen Light', 'SetAddonConstants Service Finished')
+		return logger('SetAddonConstants', 'Service Finished')
 
 class DatabaseMaintenance:
 	def run(self):
-		logger('Fen Light', 'DatabaseMaintenance Service Starting')
+		logger('DatabaseMaintenance', 'Service Starting')
 		try:
 			from caches.base_cache import make_databases
 			make_databases()
@@ -39,21 +37,20 @@ class DatabaseMaintenance:
 				initialize_history_database()
 		except Exception as exc:
 			import traceback
-			logger('Fen Light', 'DatabaseMaintenance Service Failed: %s' % exc)
-			logger('Fen Light', 'DatabaseMaintenance Service Traceback: %s' % traceback.format_exc())
+			logger('DatabaseMaintenance.run', 'Failed', severity='high', error_message=str(exc))
 			return False
-		return logger('Fen Light', 'DatabaseMaintenance Service Finished')
+		return logger('DatabaseMaintenance', 'Service Finished')
 
 class SyncSettings:
 	def run(self):
-		logger('Fen Light', 'SyncSettings Service Starting')
+		logger('SyncSettings', 'Service Starting')
 		from caches.settings_cache import sync_settings
 		sync_settings()
-		logger('Fen Light', 'SyncSettings Service Finished')
+		logger('SyncSettings', 'Service Finished')
 
 class CustomFonts:
 	def run(self):
-		logger('Fen Light', 'CustomFonts Service Starting')
+		logger('CustomFonts', 'Service Starting')
 		from windows.base_window import FontUtils
 		monitor, player, window = xbmc.Monitor(), xbmc.Player(), xbmcgui.Window(10000)
 		wait_for_abort, is_playing = monitor.waitForAbort, player.isPlayingVideo
@@ -66,14 +63,14 @@ class CustomFonts:
 		except: pass
 		try: del player
 		except: pass
-		return logger('Fen Light', 'CustomFonts Service Finished')
+		return logger('CustomFonts', 'Service Finished')
 
 class TraktMonitor:
 	def run(self):
 		from modules.settings import trakt_user_active
-		if not trakt_user_active(): return logger('Fen Light', 'TraktMonitor Service Skipped. User Not Active')
+		if not trakt_user_active(): return logger('TraktMonitor', 'Service Skipped. User Not Active')
 
-		logger('Fen Light', 'TraktMonitor Service Starting')
+		logger('TraktMonitor', 'Service Starting')
 		from apis.trakt_api import trakt_sync_activities
 		from caches.settings_cache import get_setting
 		from modules.kodi_utils import run_plugin
@@ -87,24 +84,24 @@ class TraktMonitor:
 				sync_interval, wait_time = trakt_sync_interval()
 				next_update_string = update_string % sync_interval
 				status = trakt_sync_activities()
-				if status == 'failed': logger('Fen Light', trakt_service_string % ('Failed. Error from Trakt', next_update_string))
+				if status == 'failed': logger('TraktMonitor', 'Failed', severity='medium', error_message=next_update_string)
 				else:
-					if status in ('success', 'no account'): logger('Fen Light', trakt_service_string % ('Success. %s' % trakt_success_line_dict[status], next_update_string))
-					else: logger('Fen Light', trakt_service_string % ('Success. No Changes Needed', next_update_string))# 'not needed'
+					if status in ('success', 'no account'): logger('TraktMonitor', trakt_service_string % ('Success. %s' % trakt_success_line_dict[status], next_update_string))
+					else: logger('TraktMonitor', trakt_service_string % ('Success. No Changes Needed', next_update_string))# 'not needed'
 					if status == 'success' and get_setting('fenlight.trakt.refresh_widgets', 'false') == 'true': run_plugin({'mode': 'kodi_refresh'})
-			except Exception as e: logger('Fen Light', trakt_service_string % ('Failed', 'The following Error Occured: %s' % str(e)))
+			except Exception as e: logger('TraktMonitor.run', 'Failed', severity='high', error_message=str(e))
 			wait_for_abort(wait_time)
 		try: del monitor
 		except: pass
 		try: del player
 		except: pass
-		return logger('Fen Light', 'TraktMonitor Service Finished')
+		return logger('TraktMonitor', 'Service Finished')
 
 class UpdateCheck:
 	def run(self):
 		window = xbmcgui.Window(10000)
 		if window.getProperty(firstrun_update_prop) == 'true': return
-		logger('Fen Light', 'UpdateCheck Service Starting')
+		logger('UpdateCheck', 'Service Starting')
 		from time import time
 		from modules.updater import update_check
 		from modules.settings import update_action, update_delay
@@ -121,11 +118,11 @@ class UpdateCheck:
 		except: pass
 		try: del player
 		except: pass
-		return logger('Fen Light', 'UpdateCheck Service Finished')
+		return logger('UpdateCheck', 'Service Finished')
 
 class WidgetRefresher:
 	def run(self):
-		logger('Fen Light', 'WidgetRefresher Service Starting')
+		logger('WidgetRefresher', 'Service Starting')
 		from time import time
 		from caches.settings_cache import get_setting
 		from modules.kodi_utils import home, run_plugin
@@ -148,14 +145,14 @@ class WidgetRefresher:
 				if self.condition_check(): continue
 				if self.next_refresh < time():
 					run_plugin({'mode': 'refresh_widgets', 'show_notification': self.get_setting('fenlight.widget_refresh_notification', 'false')}, block=True)
-					logger('Fen Light', 'WidgetRefresher Service - Widgets Refreshed')
+					logger('WidgetRefresher', 'Widgets Refreshed')
 					self.set_next_refresh(time())
 			except: pass
 		try: del monitor
 		except: pass
 		try: del player
 		except: pass
-		return logger('Fen Light', 'WidgetRefresher Service Finished')
+		return logger('WidgetRefresher', 'Service Finished')
 
 	def condition_check(self):
 		if not self.home(): return True
@@ -174,19 +171,19 @@ class WidgetRefresher:
 
 class AutoStart:
 	def run(self):
-		logger('Fen Light', 'AutoStart Service Starting')
+		logger('AutoStart', 'Service Starting')
 		from modules.settings import auto_start_fenlight
 		if auto_start_fenlight():
 			from modules.kodi_utils import run_addon
 			run_addon()
-		return logger('Fen Light', 'AutoStart Service Finished')
+		return logger('AutoStart', 'Service Finished')
 
 class ReuseLanguageInvokerCheck:
 	def run(self):
-		logger('Fen Light', 'ReuseLanguageInvokerCheck Service Starting')
+		logger('ReuseLanguageInvokerCheck', 'Service Starting')
 		from caches.settings_cache import get_setting
 		current_addon_setting = get_setting('fenlight.reuse_language_invoker', None)
-		if current_addon_setting is None: return logger('Fen Light', 'ReuseLanguageInvokerCheck Service Error. No current setting detected. Finished')
+		if current_addon_setting is None: return logger('ReuseLanguageInvokerCheck', 'Service Error. No current setting detected. Finished')
 		import xbmcvfs
 		from xml.dom.minidom import parse as mdParse
 		addon_xml = xbmcvfs.translatePath('special://home/addons/plugin.video.fenlight/addon.xml')
@@ -202,7 +199,7 @@ class ReuseLanguageInvokerCheck:
 			xbmc.executebuiltin('ActivateWindow(Home)', True)
 			update_local_addons()
 			disable_enable_addon()
-		return logger('Fen Light', 'ReuseLanguageInvokerCheck Service Finished')
+		return logger('ReuseLanguageInvokerCheck', 'Service Finished')
 
 class FenLightMonitor(xbmc.Monitor):
 	def __init__ (self):
@@ -228,6 +225,6 @@ class FenLightMonitor(xbmc.Monitor):
 			xbmcgui.Window(10000).clearProperty(pause_services_prop)
 			logger('OnNotificationActions', 'UNPAUSING Fen Light Services Due to Device Awake')
 
-logger('Fen Light', 'Main Monitor Service Starting')
+logger('service', 'Main Monitor Service Starting')
 FenLightMonitor().waitForAbort()
-logger('Fen Light', 'Main Monitor Service Finished')
+logger('service', 'Main Monitor Service Finished')

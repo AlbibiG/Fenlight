@@ -11,7 +11,6 @@ from modules import kodi_utils, settings
 from modules.metadata import movie_meta_external_id, tvshow_meta_external_id
 from modules.utils import sort_list, sort_for_article, get_datetime, timedelta, replace_html_codes, copy2clip, make_qrcode, make_tinyurl, \
 							title_key, make_thread_list, jsondate_to_datetime as js2date
-logger = kodi_utils.logger
 
 def no_client_key():
 	kodi_utils.notification('Please set a valid Trakt Client ID Key')
@@ -118,9 +117,9 @@ def trakt_refresh_token():
             set_setting('trakt.token', response["access_token"])
             set_setting('trakt.refresh', response["refresh_token"])
             set_setting('trakt.expires', str(time.time() + 72000))
-            kodi_utils.logger('FENLIGHT', 'Trakt Token Refreshed.')
+            kodi_utils.logger('trakt_refresh_token', 'Trakt Token Refreshed.')
         else: 
-            kodi_utils.logger('FENLIGHT', 'ERROR Refreshing Trakt Token')
+            kodi_utils.logger('trakt_refresh_token', severity='medium', error_message='ERROR Refreshing Trakt Token')
     except: pass
 
 def trakt_get_device_code():

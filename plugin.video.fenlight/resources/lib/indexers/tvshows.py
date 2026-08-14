@@ -218,7 +218,7 @@ class TVShows:
 				})
 			self.append(((url_params, listitem, self.is_folder), _position))
 		except Exception as e: 
-			logger('Error building tvshow content', str(e))
+			logger('build_tvshow_content', severity='medium', error_message=str(e))
 
 	def worker(self):
 		self.kodi_actor, self.make_listitem, self.build_url = kodi_utils.kodi_actor(), kodi_utils.make_listitem, kodi_utils.build_url

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 from urllib.parse import urlparse
 from caches.main_cache import cache_object
@@ -6,7 +5,6 @@ from modules import source_utils
 from modules.kodi_utils import list_dirs, open_file
 from modules.utils import clean_file_name, normalize, make_thread_list
 from modules.settings import filter_by_name
-# from modules.kodi_utils import logger
 
 class source:
 	def __init__(self, scrape_provider, scraper_name, folder_path):
@@ -46,7 +44,7 @@ class source:
 			self.sources = list(_process())
 		except Exception as e:
 			from modules.kodi_utils import logger
-			logger('FEN folders scraper Exception', str(e))
+			logger('folders scraper', severity='high', error_message=str(e))
 		source_utils.internal_results(self.scraper_name, self.sources)
 		return self.sources
 

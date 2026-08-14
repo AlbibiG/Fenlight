@@ -72,7 +72,6 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 
 def _record_historical_play(dbcon, media_type, media_id, season, episode, title, started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
 	try:
-		logger('Record', 'Historical Play: %s, %s, %s, %s, %s, %s, %s, %s, %s, %s' % (media_type, media_id, season, episode, title, started, ended, play_event, resume_point, curr_time))
 		if play_event == 'started':
 			dbcon.execute('''INSERT IGNORE INTO historical
 						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
@@ -88,57 +87,25 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
 						media_type, media_id, season, episode, settings.watch_history_profile_name()))
 	except Exception as e:
-		logger('Error recording historical play', str(e))
+		logger('_record_historical_play', str(e), severity='high')
 
 def _record_historical_plays_batch(dbcon, insert_list):
-  try:
-    if not insert_list:
-      return
-
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    profile_name = settings.watch_history_profile_name()
-    batch_params = []
-
-    for item in insert_list:
-      media_type = item[0]
-      media_id = item[1]
-      season = item[2]
-      episode = item[3]
-
-      # Handle optional fields based on tuple length (from make_batch_insert)
-      if len(item) >= 6:
-        started_ended_time = item[4]
-        title = item[5]
-      else:
-        started_ended_time = current_time
-        title = None
-
-      # Append the row tuple to our batch list
-      batch_params.append((
-          media_type,
-          media_id,
-          season,
-          episode,
-          "0",  # resume_point default
-          "0",  # curr_time default
-          started_ended_time,
-          started_ended_time,
-          "watched",
-          0,  # resume_id default
-          title,
-          profile_name,
-      ))
-
-    # Execute the entire batch efficiently in one query
-    dbcon.executemany(
-        """INSERT IGNORE INTO historical
-            (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        batch_params,
-    )
-
-  except Exception as e:
-    logger("Error recording historical batch plays:", str(e))
+	try:
+		if not insert_list: return
+		current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+		profile_name = settings.watch_history_profile_name()
+		batch_params = []
+		for item in insert_list:
+			media_type, media_id, season, episode = item[:4]
+			if len(item) >= 6: started_ended_time, title = item[4:6]
+			else: started_ended_time, title = current_time, None
+			batch_params.append((media_type, media_id, season, episode, '0', '0', started_ended_time,
+				started_ended_time, 'watched', 0, title, profile_name))
+		dbcon.executemany('''INSERT IGNORE INTO historical
+			(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch_params)
+	except Exception as e:
+		logger('_record_historical_plays_batch', str(e), severity='high')
 
 def record_historical_playback_start(params):
 	try:
@@ -170,7 +137,7 @@ def record_historical_playback_start(params):
 			curr_time=curr_time, 
 			resume_id=0)
 	except Exception as e:
-		logger('Error recording playback start:', str(e))
+		logger('record_historical_playback_start', str(e), severity='high')
 
 def record_historical_playback_stop(params):
 	try:
@@ -182,7 +149,6 @@ def record_historical_playback_stop(params):
 		episode = params.get('episode')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		logger('Stop', 'Check 1')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -202,7 +168,7 @@ def record_historical_playback_stop(params):
 			curr_time=curr_time, 
 			resume_id=0)
 	except Exception as e:
-		logger('Error recording playback stop:', str(e))
+		logger('record_historical_playback_stop', str(e), severity='high')
 
 def refresh_container(refresh=True):
 	if refresh: kodi_refresh()
@@ -513,7 +479,7 @@ def mark_tvshow(params):
 		progress_backround.close()
 		refresh_container()
 	except Exception as e:
-		logger('Error marking tvshow', str(e))
+		logger('mark_tvshow', str(e), severity='high')
 
 def mark_season(params):
 	try:
@@ -547,7 +513,7 @@ def mark_season(params):
 		progress_backround.close()
 		refresh_container()
 	except Exception as e:
-		logger('Error marking season', str(e))
+		logger('mark_season', str(e), severity='high')
 
 def mark_episode(params):
 	season, episode, title = int(params.get('season')), int(params.get('episode')), params.get('title')
@@ -573,11 +539,8 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
-				try:
-					dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
-					_record_historical_play(dbcon, media_type, media_id, season, episode, 0, 0, last_played, title, play_event='watched')
-				except Exception as e:
-					logger('Error marking as watched:', str(e))
+				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
+				_record_historical_play(dbcon, media_type, media_id, season, episode, 0, 0, last_played, title, play_event='watched')
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
@@ -586,9 +549,8 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 			else:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
-	except Exception as e: 
-		notification('Error')
-		logger('Error in watched_status_mark', str(e))
+	except Exception as e:
+		logger('watched_status_mark', str(e), severity='high')
 
 def batch_watched_status_mark(watched_indicators, insert_list, action):
 	try:
@@ -615,8 +577,7 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
 	except Exception as e:
-		notification('Error')
-		logger('Error in batch_watched_status_mark', str(e))
+		logger('batch_watched_status_mark', str(e), severity='high')
 
 def get_next_episodes(nextep_content):
 	watched_db = get_database()

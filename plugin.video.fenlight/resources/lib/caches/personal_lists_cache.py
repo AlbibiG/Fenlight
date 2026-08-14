@@ -3,7 +3,6 @@ from modules.settings import watch_history_profile_name, watched_indicators
 from modules.kodi_utils import logger
 
 def get_database(watched_indicator=None):
-	logger('Get Database', watched_indicator)
 	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator])
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
@@ -16,7 +15,7 @@ class PersonalListsCache:
 				dbcon.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?, ?)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
 				return True
 			except Exception as e:
-				logger('Error creating personal list in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return False
 		else:
 			try:
@@ -32,7 +31,7 @@ class PersonalListsCache:
 				dbcon.execute('OPTIMIZE TABLE personal_lists')
 				return True
 			except Exception as e: 
-				logger('Error deleting personal list in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return False
 		else:
 			try:
@@ -48,7 +47,7 @@ class PersonalListsCache:
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr([]), '0', list_name, watch_history_profile_name()))
 				return True
 			except Exception as e: 
-				logger('Error deleting personal list contents in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return False
 		else:
 			try:
@@ -63,7 +62,7 @@ class PersonalListsCache:
 				dbcon.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=? and profile=?', (list_name, sort_order, original_name, watch_history_profile_name()))
 				return True
 			except Exception as e: 
-				logger('Error updating personal list details in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return False
 		else:
 			try:
@@ -78,7 +77,7 @@ class PersonalListsCache:
 				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
 				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except Exception as e: 
-				logger('Error getting personal lists in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return []
 		else:
 			try:
@@ -92,7 +91,7 @@ class PersonalListsCache:
 			try:
 				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name())).fetchone()[0])
 			except Exception as e: 
-				logger('Error getting personal list in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return []
 		else:
 			try:
@@ -115,7 +114,7 @@ class PersonalListsCache:
 				dbcon.execute(command, (repr(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			except Exception as e: 
-				logger('Error adding/removing list item in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return 'Error'
 		else:
 			try:
@@ -143,7 +142,7 @@ class PersonalListsCache:
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr(contents), len(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			except Exception as e: 
-				logger('Error adding many list items in MariaDB', str(e))
+				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
 				return 'Error'
 		else:
 			try:

@@ -448,6 +448,14 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>
+                          <property name="setting_label">Debug Logging</property>
+                          <property name="setting_type">boolean</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.debug_enabled)]</property>
+                          <property name="setting_description">Enable verbose debug logging for low and medium severity issues. High severity errors always write to the log.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_boolean&amp;setting_id=debug_enabled)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10)</visible>
                           <property name="setting_label">Limit Concurrent Threads</property>
                           <property name="setting_type">boolean</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.limit_concurrent_threads)]</property>

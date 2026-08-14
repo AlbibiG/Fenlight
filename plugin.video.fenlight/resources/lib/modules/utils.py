@@ -409,7 +409,7 @@ def make_image(list_type, image_type, list_name, images, current_image):
 		shutil.rmtree(worker_image_folder)
 		if current_image: os.remove(current_image)
 	except Exception as e:
-		logger('error creating Image', str(e))
+		logger('make_image', severity='low', error_message=str(e))
 		notification('Error Creating Image')
 	return saved_final_image
 	

@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
 from caches.settings_cache import get_setting, set_setting, default_setting_values
 from modules.kodi_utils import translate_path, get_property
-# from modules.kodi_utils import logger
 
 def tmdb_api_key():
 	return get_setting('fenlight.tmdb_api', '7025e94b6ec71625d06ff4d38a9f9727')
@@ -83,6 +81,11 @@ def show_unaired_watchlist():
 
 def auto_start_fenlight():
 	return get_setting('fenlight.auto_start_fenlight', 'false') == 'true'
+
+
+def debug_enabled():
+	return get_setting('fenlight.debug_enabled', 'false') == 'true'
+
 
 def source_folders_directory(media_type, source):
 	setting = 'fenlight.%s.movies_directory' % source if media_type == 'movie' else 'fenlight.%s.tv_shows_directory' % source

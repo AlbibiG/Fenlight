@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 # TRUMP WON
+import os
+import sys
+import threading
 import xbmc, xbmcgui, xbmcplugin, xbmcvfs, xbmcaddon
 from urllib.parse import urlencode, unquote
 
@@ -140,8 +143,21 @@ def append_path(_path):
 	import sys
 	sys.path.append(translatePath(_path))
 
-def logger(heading, function):
-	xbmc.log('###%s###: %s' % (heading, function), 1)
+def debug_enabled():
+	return get_property('fenlight.debug_enabled') == 'true'
+
+def logger(function, notification_message='', severity=None, notify=True, error_message=None):
+	severity = str(severity).lower() if severity else None
+	if severity not in (None, 'high', 'medium', 'low'):
+		severity = None
+	if severity is None:
+		if debug_enabled(): xbmc.log('###Fen Light Debugger###: %s - %s' % (function, notification_message), 0)
+		return
+	level = 4 if severity == 'high' else 2
+	xbmc.log('###Fen Light %s###: %s - %s' % (severity.upper(), function, error_message), level)
+	if notify:
+		color = {'high': 'red', 'medium': 'yellow', 'low': 'white'}[severity]
+		notification('[COLOR %s]%s[/COLOR] %s' % (color, severity.upper(), notification_message), 5000, addon_icon())
 
 def kodi_window():
 	return xbmcgui.Window(10000)
@@ -404,7 +420,7 @@ def timeIt(func):
 	def wrap(*args, **kwargs):
 		started_at = time.time()
 		result = func(*args, **kwargs)
-		logger('%s.%s' % (__name__ , fnc_name), (time.time() - started_at))
+		logger('timeIt', '%s.%s' % (__name__ , fnc_name), (time.time() - started_at))
 		return result
 	return wrap
 

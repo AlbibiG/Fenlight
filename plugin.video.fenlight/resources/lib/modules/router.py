@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from xbmc import getInfoLabel
 from urllib.parse import parse_qsl
 from modules.kodi_utils import external, get_property, logger

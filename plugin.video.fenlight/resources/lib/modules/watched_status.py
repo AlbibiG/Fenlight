@@ -87,7 +87,7 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
 						media_type, media_id, season, episode, settings.watch_history_profile_name()))
 	except Exception as e:
-		logger('_record_historical_play', str(e), severity='high')
+		logger('_record_historical_play', severity='medium', error_message=str(e))
 
 def _record_historical_plays_batch(dbcon, insert_list):
 	try:
@@ -105,7 +105,7 @@ def _record_historical_plays_batch(dbcon, insert_list):
 			(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch_params)
 	except Exception as e:
-		logger('_record_historical_plays_batch', str(e), severity='high')
+		logger('_record_historical_plays_batch', severity='medium', error_message=str(e))
 
 def record_historical_playback_start(params):
 	try:
@@ -137,7 +137,7 @@ def record_historical_playback_start(params):
 			curr_time=curr_time, 
 			resume_id=0)
 	except Exception as e:
-		logger('record_historical_playback_start', str(e), severity='high')
+		logger('record_historical_playback_start', severity='medium', error_message=str(e))
 
 def record_historical_playback_stop(params):
 	try:
@@ -168,7 +168,7 @@ def record_historical_playback_stop(params):
 			curr_time=curr_time, 
 			resume_id=0)
 	except Exception as e:
-		logger('record_historical_playback_stop', str(e), severity='high')
+		logger('record_historical_playback_stop', severity='medium', error_message=str(e))
 
 def refresh_container(refresh=True):
 	if refresh: kodi_refresh()
@@ -362,7 +362,8 @@ def clear_local_bookmarks():
 		dbcon = database.connect(get_video_database_path())
 		file_ids = dbcon.execute("SELECT idFile FROM files WHERE strFilename LIKE 'plugin.video.fenlight%'").fetchall()
 		for i in ('bookmark', 'streamdetails', 'files'): dbcon.executemany("DELETE FROM %s WHERE idFile=?" % i, file_ids)
-	except: pass
+	except Exception as e:
+		logger('clear_local_bookmarks', severity='medium', error_message=str(e))
 
 def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='false'):
 	try:
@@ -380,31 +381,31 @@ def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='fal
 		else:
 			watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', (media_type, media_id, season, episode))
 		refresh_container(refresh == 'true')
-	except: pass
+	except Exception as e:
+		logger('erase_bookmark', severity='medium', error_message=str(e))
 
 def batch_erase_bookmark(watched_indicators, insert_list, action):
-    try:
-        watched_db = get_database(watched_indicators)
-        modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list] if action == 'mark_as_watched' else insert_list
-        
-        if watched_indicators == 1:
-            def _process():
-                for i in insert_list:
-                    try:
-                        # Streamline parameter passing
-                        resume_id = get_bookmarks_episode(str(i[1]), i[2], watched_db)[int(i[3])]['resume_id']
-                        sleep(1000)
-                        trakt_progress('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id)
-                    except: pass
-            Thread(target=_process).start()
-            
-        if watched_indicators == 2:
-            profile_name = settings.watch_history_profile_name()
-            params = [item + (profile_name,) for item in modified_list]
-            watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?', params)
-        else: 
-            watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
-    except: pass
+	try:
+		watched_db = get_database(watched_indicators)
+		modified_list = [(i[0], i[1], i[2], i[3]) for i in insert_list] if action == 'mark_as_watched' else insert_list
+		if watched_indicators == 1:
+			def _process():
+				for i in insert_list:
+					try:
+						resume_id = get_bookmarks_episode(str(i[1]), i[2], watched_db)[int(i[3])]['resume_id']
+						sleep(1000)
+						trakt_progress('clear_progress', i[0], i[1], 0, i[2], i[3], resume_id)
+					except Exception as e:
+						logger('batch_erase_bookmark_process', severity='medium', error_message=str(e))
+			Thread(target=_process).start()
+		if watched_indicators == 2:
+			profile_name = settings.watch_history_profile_name()
+			params = [item + (profile_name,) for item in modified_list]
+			watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?', params)
+		else: 
+			watched_db.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', modified_list)
+	except Exception as e:
+		logger('batch_erase_bookmark', severity='medium', error_message=str(e))
 
 def set_bookmark(params):
 	try:
@@ -430,20 +431,24 @@ def set_bookmark(params):
 				dbcon.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
 		refresh_container(refresh)
-	except: pass
+	except Exception as e:
+		logger('set_bookmark', severity='medium', error_message=str(e))
 
 def mark_movie(params):
-	action, media_type = params.get('action'), 'movie'
-	refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
-	if from_playback: refresh = False
-	tmdb_id, title = params.get('tmdb_id'), params.get('title')
-	watched_indicators = settings.watched_indicators()
-	if watched_indicators == 1:
-		if from_playback and trakt_official_status(media_type) == False: sleep(1000)
-		elif not trakt_watched_status_mark(action, 'movies', tmdb_id): return notification('Error')
-		clear_trakt_collection_watchlist_data('watchlist', media_type)
-	watched_status_mark(watched_indicators, media_type, tmdb_id, action, title=title)
-	refresh_container(refresh)
+	try:
+		action, media_type = params.get('action'), 'movie'
+		refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
+		if from_playback: refresh = False
+		tmdb_id, title = params.get('tmdb_id'), params.get('title')
+		watched_indicators = settings.watched_indicators()
+		if watched_indicators == 1:
+			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
+			elif not trakt_watched_status_mark(action, 'movies', tmdb_id): return notification('Error')
+			clear_trakt_collection_watchlist_data('watchlist', media_type)
+		watched_status_mark(params)
+		refresh_container(refresh)
+	except Exception as e:
+		logger('mark_movie', severity='medium', error_message=str(e))
 
 def mark_tvshow(params):
 	try:
@@ -479,7 +484,7 @@ def mark_tvshow(params):
 		progress_backround.close()
 		refresh_container()
 	except Exception as e:
-		logger('mark_tvshow', str(e), severity='high')
+		logger('mark_tvshow', severity='medium', error_message=str(e))
 
 def mark_season(params):
 	try:
@@ -491,7 +496,6 @@ def mark_season(params):
 		try: tvdb_id = int(params.get('tvdb_id', '0'))
 		except: tvdb_id = 0
 		watched_indicators = settings.watched_indicators()
-		heading = '[B]Mark Watched %s[/B]' if action == 'mark_as_watched' else '[B]Mark Unwatched %s[/B]'
 		if watched_indicators == 1:
 			if not trakt_watched_status_mark(action, 'season', tmdb_id, tvdb_id, season): return notification('Error')
 			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
@@ -513,34 +517,40 @@ def mark_season(params):
 		progress_backround.close()
 		refresh_container()
 	except Exception as e:
-		logger('mark_season', str(e), severity='high')
+		logger('mark_season', severity='medium', error_message=str(e))
 
 def mark_episode(params):
-	season, episode, title = int(params.get('season')), int(params.get('episode')), params.get('title')
-	if season == 0: return notification('Failed')
-	action, media_type = params.get('action'), 'episode'
-	refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
-	if from_playback: refresh = False
-	tmdb_id = params.get('tmdb_id')
-	try: tvdb_id = int(params.get('tvdb_id', '0'))
-	except: tvdb_id = 0
-	watched_indicators = settings.watched_indicators()
-	if watched_indicators == 1:
-		if from_playback and trakt_official_status(media_type) == False: sleep(1000)
-		elif not trakt_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode): return notification('Error')
-		clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
-	watched_status_mark(watched_indicators, media_type, tmdb_id, action, season, episode, title)
-	update_hidden_progress(tmdb_id)
-	refresh_container(refresh)
+	try:
+		season, episode = int(params.get('season')), int(params.get('episode'))
+		if season == 0: return notification('Failed')
+		action, media_type = params.get('action'), 'episode'
+		refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
+		if from_playback: refresh = False
+		tmdb_id = params.get('tmdb_id')
+		try: tvdb_id = int(params.get('tvdb_id', '0'))
+		except: tvdb_id = 0
+		watched_indicators = settings.watched_indicators()
+		if watched_indicators == 1:
+			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
+			elif not trakt_watched_status_mark(action, media_type, tmdb_id, tvdb_id, season, episode): return notification('Error')
+			clear_trakt_collection_watchlist_data('watchlist', 'tvshow')
+		watched_status_mark(params)
+		update_hidden_progress(tmdb_id)
+		refresh_container(refresh)
+	except Exception as e:
+		logger('mark_episode', severity='medium', error_message=str(e))
 
-def watched_status_mark(watched_indicators, media_type='', media_id='', action='', season=None, episode=None, title=''):
+def watched_status_mark(params):
+	watched_indicators = settings.watched_indicators()
+	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season'), params.get('episode'), params.get('title')
+	logger('watched_status_mark', params)
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
-				_record_historical_play(dbcon, media_type, media_id, season, episode, 0, 0, last_played, title, play_event='watched')
+				record_historical_playback_stop(params)
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
@@ -550,7 +560,7 @@ def watched_status_mark(watched_indicators, media_type='', media_id='', action='
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
 	except Exception as e:
-		logger('watched_status_mark', str(e), severity='high')
+		logger('watched_status_mark', severity='medium', error_message=str(e))
 
 def batch_watched_status_mark(watched_indicators, insert_list, action):
 	try:
@@ -577,7 +587,7 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)
 	except Exception as e:
-		logger('batch_watched_status_mark', str(e), severity='high')
+		logger('batch_watched_status_mark', severity='medium', error_message=str(e))
 
 def get_next_episodes(nextep_content):
 	watched_db = get_database()

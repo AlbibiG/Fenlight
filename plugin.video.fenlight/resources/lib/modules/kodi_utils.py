@@ -146,7 +146,8 @@ def append_path(_path):
 def logger(function, notification_message='', severity=None, notify=True, error_message=''):
 	if severity is None:
 		from modules.settings import debug_enabled
-		if debug_enabled(): xbmc.log('###Fen Light Debugger###: %s - %s - %s' % (function, notification_message, error_message), 0)
+		if debug_enabled():
+				xbmc.log('###Fen Light Debugger###: %s - %s' % (function, notification_message), 0)
 		return
 	level = 4 if severity == 'high' else 2
 	xbmc.log('###Fen Light %s###: %s - %s' % (severity.upper(), function, error_message), level)

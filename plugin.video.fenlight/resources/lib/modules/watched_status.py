@@ -440,10 +440,11 @@ def set_bookmark(params):
 
 def mark_movie(params):
 	try:
-		action, media_type = params.get('action'), 'movie'
+		params['media_type'] = 'movie'
+		action, media_type = params.get('action'), params.get('media_type')
 		refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
 		if from_playback: refresh = False
-		tmdb_id, title = params.get('tmdb_id'), params.get('title')
+		tmdb_id = params.get('tmdb_id')
 		watched_indicators = settings.watched_indicators()
 		if watched_indicators == 1:
 			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
@@ -525,9 +526,10 @@ def mark_season(params):
 
 def mark_episode(params):
 	try:
+		params['media_type'] = 'episode'
 		season, episode = int(params.get('season')), int(params.get('episode'))
 		if season == 0: return notification('Failed')
-		action, media_type = params.get('action'), 'episode'
+		action, media_type = params.get('action'), params.get('media_type')
 		refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
 		if from_playback: refresh = False
 		tmdb_id = params.get('tmdb_id')

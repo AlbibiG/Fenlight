@@ -154,7 +154,7 @@ class FenLightPlayer(xbmc.Player):
 		try:
 			def spawn_progress(func, extra_params=None):
 				params = {
-					'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 
+					'tmdb_id': self.tmdb_id, 
 					'curr_time': self.curr_time, 'total_time': self.total_time, 
 					'title': self.title, 'season': self.season, 'episode': self.episode,
 					'year': self.year, 'tvdb_id': self.tvdb_id

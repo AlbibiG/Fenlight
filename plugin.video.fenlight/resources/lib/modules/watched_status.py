@@ -70,14 +70,14 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 	if action == 'mark_as_watched': return (media_type, media_id, season, episode, last_played, title)
 	else: return (media_type, media_id, season, episode)
 
-def _record_historical_play(dbcon, media_type, media_id, season, episode, title, started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
+def _record_historical_play(dbcon, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0, profile=None):
 	try:
 		if play_event == 'started':
 			dbcon.execute('''INSERT IGNORE INTO historical
 						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
 						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
 						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
-						settings.watch_history_profile_name()))
+						profile))
 		else:
 			dbcon.execute('''UPDATE historical
 						SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
@@ -85,7 +85,7 @@ def _record_historical_play(dbcon, media_type, media_id, season, episode, title,
 						ORDER BY started DESC
 						LIMIT 1''',
 						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
-						media_type, media_id, season, episode, settings.watch_history_profile_name()))
+						media_type, media_id, season, episode, profile))
 	except Exception as e:
 		logger('_record_historical_play', severity='medium', error_message=str(e))
 
@@ -109,15 +109,15 @@ def _record_historical_plays_batch(dbcon, insert_list):
 
 def record_historical_playback_start(params):
 	try:
-		if settings.watched_indicators() == 0 or settings.watched_indicators() == 1: return
 		media_type = params.get('media_type')
 		media_id = params.get('tmdb_id')
 		title = params.get('title', '')
-		season = params.get('season')
-		episode = params.get('episode')
+		season = params.get('season', None)
+		episode = params.get('episode', None)
 		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
+		profile = params.get('profile', None)
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -135,7 +135,8 @@ def record_historical_playback_start(params):
 			play_event='started', 
 			resume_point=resume_point, 
 			curr_time=curr_time, 
-			resume_id=0)
+			resume_id=0,
+			profile=profile)
 	except Exception as e:
 		logger('record_historical_playback_start', severity='medium', error_message=str(e))
 
@@ -145,10 +146,11 @@ def record_historical_playback_stop(params):
 		media_type = params.get('media_type')
 		media_id = params.get('tmdb_id')
 		title = params.get('title', '')
-		season = params.get('season')
-		episode = params.get('episode')
+		season = params.get('season', None)
+		episode = params.get('episode', None)
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
+		profile = params.get('profile', None)
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -170,7 +172,8 @@ def record_historical_playback_stop(params):
 			play_event=play_event, 
 			resume_point=resume_point, 
 			curr_time=curr_time, 
-			resume_id=0)
+			resume_id=0,
+			profile=profile)
 	except Exception as e:
 		logger('record_historical_playback_stop', severity='medium', error_message=str(e))
 
@@ -549,16 +552,13 @@ def mark_episode(params):
 def watched_status_mark(params):
 	logger('watched_status_mark', notification_message=params)
 	watched_indicators = settings.watched_indicators()
-	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title')
-	profile = settings.watch_history_profile_name() if watched_indicators not in (0,1) else None
-
+	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile', None)
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile))
-				record_historical_playback_stop(params)
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':

@@ -547,19 +547,21 @@ def mark_episode(params):
 def watched_status_mark(params):
 	logger('watched_status_mark', notification_message=params)
 	watched_indicators = settings.watched_indicators()
-	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season'), params.get('episode'), params.get('title')
+	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title')
+	profile = settings.watch_history_profile_name() if watched_indicators not in (0,1) else None
+	
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
 			if watched_indicators == 2:
-				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, settings.watch_history_profile_name()))
+				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile))
 				record_historical_playback_stop(params)
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
 			if watched_indicators == 2:
-				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, settings.watch_history_profile_name()))
+				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile))
 			else:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

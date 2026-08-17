@@ -549,7 +549,7 @@ def watched_status_mark(params):
 	watched_indicators = settings.watched_indicators()
 	media_type, media_id, action, season, episode, title = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title')
 	profile = settings.watch_history_profile_name() if watched_indicators not in (0,1) else None
-	
+
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)

@@ -152,24 +152,29 @@ class FenLightPlayer(xbmc.Player):
 	def media_watched_marker(self, force_watched=False):
 		self.media_marked = True
 		try:
-			if force_watched:
-				stop_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 
-					'total_time': self.total_time, 'title': self.title, 'season': self.season, 'episode': self.episode,
-					'play_event': 'watched'}
-				Thread(target=self.run_media_progress, args=(ws.record_historical_playback_stop, stop_params)).start()
+			def spawn_progress(func, extra_params=None):
+				params = {
+					'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 
+					'curr_time': self.curr_time, 'total_time': self.total_time, 
+					'title': self.title, 'season': self.season, 'episode': self.episode,
+					'year': self.year, 'tvdb_id': self.tvdb_id
+				}
+				if extra_params:
+					params.update(extra_params)
+				Thread(target=self.run_media_progress, args=(func, params)).start()
+
 			if self.current_point >= 90 or force_watched:
-				watched_function = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
-				watched_params = {'action': 'mark_as_watched', 'tmdb_id': self.tmdb_id, 'title': self.title, 'year': self.year, 'season': self.season, 'episode': self.episode,
-									'tvdb_id': self.tvdb_id, 'from_playback': 'true', 'media_type': self.media_type, 'curr_time': self.curr_time, 'total_time': self.total_time}
-				Thread(target=self.run_media_progress, args=(watched_function, watched_params)).start()
+				watched_func = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
+				spawn_progress(watched_func, {
+					'action': 'mark_as_watched', 'from_playback': 'true'
+				})
 			else:
 				ku.clear_property('fenlight.random_episode_history')
 				if self.current_point >= 5:
-					progress_params = {'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 'curr_time': self.curr_time, 'total_time': self.total_time,
-									'title': self.title, 'season': self.season, 'episode': self.episode, 'from_playback': 'true'}
-					Thread(target=self.run_media_progress, args=(ws.set_bookmark, progress_params)).start()
+					spawn_progress(ws.set_bookmark, {'from_playback': 'true'})
 
-		except: pass
+		except Exception as e:
+			ku.logger('media_watched_marker', severity='medium', error_message=str(e))
 
 	def run_media_progress(self, function, params):
 		try: function(params)

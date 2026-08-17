@@ -117,7 +117,7 @@ def record_historical_playback_start(params):
 		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		profile = params.get('profile')
+		profile = params.get('profile', settings.watch_history_profile_name())
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -150,7 +150,7 @@ def record_historical_playback_stop(params):
 		episode = params.get('episode', None)
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		profile = params.get('profile')
+		profile = params.get('profile', settings.watch_history_profile_name())
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -444,12 +444,11 @@ def set_bookmark(params):
 def mark_movie(params):
 	try:
 		params['media_type'] = 'movie'
-		action, media_type = params.get('action'), params.get('media_type')
 		refresh, from_playback = params.get('refresh', 'true') == 'true', params.get('from_playback', 'false') == 'true'
 		if from_playback: refresh = False
-		tmdb_id = params.get('tmdb_id')
 		watched_indicators = settings.watched_indicators()
 		if watched_indicators == 1:
+			tmdb_id, action, media_type = params.get('tmdb_id'), params.get('action'), params.get('media_type')
 			if from_playback and trakt_official_status(media_type) == False: sleep(1000)
 			elif not trakt_watched_status_mark(action, 'movies', tmdb_id): return notification('Error')
 			clear_trakt_collection_watchlist_data('watchlist', media_type)
@@ -552,7 +551,7 @@ def mark_episode(params):
 def watched_status_mark(params):
 	logger('watched_status_mark', notification_message=params)
 	watched_indicators = settings.watched_indicators()
-	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile')
+	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile', settings.watch_history_profile_name)
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)

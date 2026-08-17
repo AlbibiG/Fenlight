@@ -17,11 +17,16 @@ class FenLightPlayer(xbmc.Player):
 
     def create_params(self, extra_params=None):
         params = {
-            'media_type': self.media_type, 'tmdb_id': self.tmdb_id, 
-            'curr_time': self.curr_time, 'total_time': self.total_time, 
-            'title': self.title, 'season': self.season, 'episode': self.episode,
-            'year': self.year, 'tvdb_id': self.tvdb_id, 'profile': st.watch_history_profile_name() if st.watched_indicators() not in (0,1) else None
-
+            'media_type': self.media_type, 
+            'tmdb_id': self.tmdb_id, 
+            'curr_time': self.curr_time, 
+            'total_time': self.total_time, 
+            'title': self.title, 
+            'season': self.season, 
+            'episode': self.episode,
+            'year': self.year, 
+            'tvdb_id': self.tvdb_id, 
+            'profile': st.watch_history_profile_name() or "default"
         }
         if extra_params:
             params.update(extra_params)

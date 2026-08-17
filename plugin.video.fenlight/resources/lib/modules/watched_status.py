@@ -117,7 +117,7 @@ def record_historical_playback_start(params):
 		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		profile = params.get('profile', None)
+		profile = params.get('profile')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -150,7 +150,7 @@ def record_historical_playback_stop(params):
 		episode = params.get('episode', None)
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
-		profile = params.get('profile', None)
+		profile = params.get('profile')
 		if media_type in (None, '') or media_id in (None, ''): return
 		try:
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
@@ -552,7 +552,7 @@ def mark_episode(params):
 def watched_status_mark(params):
 	logger('watched_status_mark', notification_message=params)
 	watched_indicators = settings.watched_indicators()
-	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile', None)
+	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile')
 	try:
 		last_played = get_last_played_value(watched_indicators)
 		dbcon = get_database(watched_indicators)

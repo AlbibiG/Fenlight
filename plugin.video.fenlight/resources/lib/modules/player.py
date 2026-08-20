@@ -3,7 +3,7 @@ import json
 from threading import Thread
 from apis.trakt_api import make_trakt_slug
 from modules import kodi_utils as ku, settings as st, watched_status as ws
-from modules.kodi_utils import get_datetime
+from modules.utils import get_datetime
 
 class FenLightPlayer(xbmc.Player):
     def __init__ (self):

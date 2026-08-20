@@ -18,6 +18,7 @@ class FenLightPlayer(xbmc.Player):
 
     def create_params(self, extra_params=None):
         params = {
+            'media_type': self.media_type,
             'tmdb_id': self.tmdb_id, 
             'curr_time': self.curr_time, 
             'total_time': self.total_time, 

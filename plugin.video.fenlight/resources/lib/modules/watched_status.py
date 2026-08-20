@@ -81,11 +81,11 @@ def _record_historical_play(dbcon, media_type, media_id, season=None, episode=No
 		else:
 			dbcon.execute('''UPDATE historical
 						SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
-						WHERE db_type = ? AND media_id = ? AND season = ? AND episode = ? AND profile = ? AND play_event = 'started'
+						WHERE db_type = ? AND media_id = ? AND season = ? AND episode = ? AND profile = ? AND started = ?
 						ORDER BY started DESC
 						LIMIT 1''',
 						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
-						media_type, media_id, season, episode, profile))
+						media_type, media_id, season, episode, profile, started))
 	except Exception as e:
 		logger('_record_historical_play', severity='medium', error_message=str(e))
 
@@ -114,7 +114,7 @@ def record_historical_playback_start(params):
 		title = params.get('title', '')
 		season = params.get('season', None)
 		episode = params.get('episode', None)
-		started = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+		started = params.get('started')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
 		profile = params.get('profile', settings.watch_history_profile_name())
@@ -123,7 +123,7 @@ def record_historical_playback_start(params):
 			resume_point = round((float(curr_time) / float(total_time)) * 100, 1) if float(total_time) > 0 else 0.0
 		except:
 			resume_point = 0.0
-		dbcon = get_database(2)
+		dbcon = get_database()
 		_record_historical_play(
 			dbcon=dbcon, 
 			media_type=media_type, 
@@ -142,12 +142,12 @@ def record_historical_playback_start(params):
 
 def record_historical_playback_stop(params):
 	try:
-		if settings.watched_indicators() == 0 or settings.watched_indicators() == 1: return
 		media_type = params.get('media_type')
 		media_id = params.get('tmdb_id')
 		title = params.get('title', '')
 		season = params.get('season', None)
 		episode = params.get('episode', None)
+		started = params.get('started')
 		curr_time = params.get('curr_time', 0)
 		total_time = params.get('total_time', 0)
 		profile = params.get('profile', settings.watch_history_profile_name())
@@ -160,7 +160,7 @@ def record_historical_playback_stop(params):
 			play_event = 'watched' 
 		else: 
 			play_event = 'stopped'
-		dbcon = get_database(2)
+		dbcon = get_database()
 		_record_historical_play(
 			dbcon=dbcon, 
 			media_type=media_type, 
@@ -168,6 +168,7 @@ def record_historical_playback_stop(params):
 			season=season, 
 			episode=episode, 
 			title=title,
+			started=started,
 			ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
 			play_event=play_event, 
 			resume_point=resume_point, 

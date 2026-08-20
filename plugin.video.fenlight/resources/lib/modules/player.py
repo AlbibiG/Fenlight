@@ -3,6 +3,7 @@ import json
 from threading import Thread
 from apis.trakt_api import make_trakt_slug
 from modules import kodi_utils as ku, settings as st, watched_status as ws
+from modules.kodi_utils import get_datetime
 
 class FenLightPlayer(xbmc.Player):
     def __init__ (self):
@@ -17,7 +18,6 @@ class FenLightPlayer(xbmc.Player):
 
     def create_params(self, extra_params=None):
         params = {
-            'media_type': self.media_type, 
             'tmdb_id': self.tmdb_id, 
             'curr_time': self.curr_time, 
             'total_time': self.total_time, 
@@ -25,8 +25,7 @@ class FenLightPlayer(xbmc.Player):
             'season': self.season, 
             'episode': self.episode,
             'year': self.year, 
-            'tvdb_id': self.tvdb_id, 
-            'profile': st.watch_history_profile_name() or "default"
+            'tvdb_id': self.tvdb_id
         }
         if extra_params:
             params.update(extra_params)
@@ -90,7 +89,8 @@ class FenLightPlayer(xbmc.Player):
             try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
             except: self.total_time, self.curr_time = 0, 0
             if st.watched_indicators() not in (0, 1):
-                params = self.create_params()
+                media_started = get_datetime(dt=True).strftime('%Y-%m-%d %H:%M:%S')
+                params = self.create_params({'started' : media_started})
                 Thread(target=ws.record_historical_playback_start, args=(params,)).start()
             ku.hide_busy_dialog()
             ku.sleep(1000)
@@ -107,7 +107,7 @@ class FenLightPlayer(xbmc.Player):
                     self.current_point = round(float(self.curr_time/self.total_time * 100), 1)
                     self.rounded_current_point = int(self.current_point)
                     if self.rounded_current_point > self.init_rounded_current_point and st.watched_indicators() not in (0, 1):
-                        params = self.create_params()
+                        params = self.create_params({'started': media_started})
                         Thread(target=ws.record_historical_playback_stop, args=(params,)).start()
                         self.init_rounded_current_point = self.rounded_current_point
                     if self.current_point >= 90:
@@ -178,13 +178,16 @@ class FenLightPlayer(xbmc.Player):
             if self.current_point >= 90 or force_watched:
                 watched_func = ws.mark_movie if self.media_type == 'movie' else ws.mark_episode
                 params = self.create_params({
-                    'action': 'mark_as_watched', 'from_playback': 'true'
+                    'action': 'mark_as_watched', 
+                    'from_playback': 'true'
                 })
                 Thread(target=self.run_media_progress, args=(watched_func, params)).start()
             else:
                 ku.clear_property('fenlight.random_episode_history')
                 if self.current_point >= 5:
-                    params = self.create_params({'action': 'set_bookmark', 'from_playback': 'true'})
+                    params = self.create_params({
+                        'action': 'set_bookmark', 
+                        'from_playback': 'true'})
                     Thread(target=self.run_media_progress, args=(ws.set_bookmark, params)).start()
         except Exception as e:
             ku.logger('media_watched_marker', severity='medium', error_message=str(e))

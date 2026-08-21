@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import re
 import json
 import requests
@@ -8,7 +7,6 @@ from caches.settings_cache import get_setting
 from modules.dom_parser import parseDOM
 from modules.kodi_utils import sleep
 from modules.utils import remove_accents, replace_html_codes, normalize
-# from modules.kodi_utils import logger
 
 def imdb_more_like_this(imdb_id):
 	url = 'https://www.imdb.com/title/%s' % imdb_id

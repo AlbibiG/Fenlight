@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 import json
 from caches.settings_cache import get_setting, set_setting, set_default, default_setting_values
 from modules import kodi_utils, settings
-# logger = kodi_utils.logger
 
 def context_menu_order_choice(params):
 	options = {'extras': 'Extras', 'options': 'Options', 'playback_options': 'Playback Options', 'browse_set_season': 'Browse Movie Set/TV Season',

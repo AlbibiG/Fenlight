@@ -167,8 +167,8 @@ class Movies:
 											'name': movieset_name, 'is_external': self.is_external})
 				cm_append(['browse_set_season', ('[B]Browse Movie Set[/B]', self.window_command % browse_movie_set_params)])
 			else: browse_movie_set_params = ''
-			cm_append(['recommended', ('[B]Browse Recommended[/B]', self.window_command % browse_recommended_params)])
-			if imdb_id: cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
+			if tmdb_id and settings.recommended_service() == 0: cm_append(['recommended', ('[B]Browse Recommended[/B]', self.window_command % browse_recommended_params)])
+			if imdb_id and settings.recommended_service() == 1: cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
 			if imdb_id and settings.trakt_user_active():
 				browse_in_trakt_list_params = self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'movie', 'imdb_id': imdb_id,
 											'is_external': self.is_external, 'category_name': '%s In Trakt Lists' % title})
@@ -217,9 +217,9 @@ class Movies:
 				'fenlight.options_params': options_params,
 				'fenlight.playback_options_params': playback_options_params,
 				'fenlight.browse_movie_set_params': browse_movie_set_params,
-				'fenlight.browse_recommended_params': browse_recommended_params,
-				'fenlight.browse_more_like_this_params': browse_more_like_this_params,
-				'fenlight.browse_in_trakt_list_params': browse_in_trakt_list_params,
+				'fenlight.browse_recommended_params': browse_recommended_params if tmdb_id and settings.recommended_service() == 0 else '',
+				'fenlight.browse_more_like_this_params': browse_more_like_this_params if imdb_id and settings.recommended_service() == 1 else '',
+				'fenlight.browse_in_trakt_list_params': browse_in_trakt_list_params if imdb_id and settings.trakt_user_active() else '',
 				'fenlight.trakt_manager_params': trakt_manager_params if settings.trakt_user_active() else '',
 				'fenlight.personal_manager_params': personal_manager_params,
 				'fenlight.tmdb_manager_params': tmdb_manager_params if settings.tmdblist_user_active() else '',

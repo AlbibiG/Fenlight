@@ -368,3 +368,6 @@ def cm_sort_order():
 def rpdb_api_key(media_type):
 	if int(get_setting('fenlight.rpdb_enabled', '0')) not in {'movie': (1, 3), 'tvshow': (2, 3)}[media_type]: return None
 	return get_setting('fenlight.rpdb_api')
+
+def recommended_service():
+	return int(get_setting('fenlight.recommend_service', '0'))

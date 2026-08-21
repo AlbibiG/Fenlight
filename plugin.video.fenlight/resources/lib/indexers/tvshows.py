@@ -168,12 +168,12 @@ class TVShows:
 			else: cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
 			cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 			cm_append(['recommended', ('[B]Browse Recommended[/B]', self.window_command % browse_recommended_params)])
-			cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
-			if imdb_id: cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % \
+			if imdb_id: cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
+			if imdb_id and settings.trakt_user_active(): cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % \
 							self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'tvshow', 'imdb_id': imdb_id, 'category_name': '%s In Trakt Lists' % title}))])
-			cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
+			if settings.trakt_user_active(): cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
-			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			if settings.tmdblist_user_active(): cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
 			if playcount:
 				if self.widget_hide_watched: return
@@ -211,9 +211,9 @@ class TVShows:
 				'fenlight.options_params': options_params,
 				'fenlight.browse_recommended_params': browse_recommended_params,
 				'fenlight.browse_more_like_this_params': browse_more_like_this_params,
-				'fenlight.trakt_manager_params': trakt_manager_params,
+				'fenlight.trakt_manager_params': trakt_manager_params if settings.trakt_user_active() else '',
 				'fenlight.personal_manager_params': personal_manager_params,
-				'fenlight.tmdb_manager_params': tmdb_manager_params,
+				'fenlight.tmdb_manager_params': tmdb_manager_params if settings.tmdblist_user_active() else '',
 				'fenlight.favorites_manager_params': favorites_manager_params
 				})
 			self.append(((url_params, listitem, self.is_folder), _position))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import sys
 from modules.metadata import movie_meta, movieset_meta
 from modules.utils import get_datetime, get_current_timestamp, paginate_list, jsondate_to_datetime, TaskPool, manual_function_import
@@ -169,15 +168,15 @@ class Movies:
 				cm_append(['browse_set_season', ('[B]Browse Movie Set[/B]', self.window_command % browse_movie_set_params)])
 			else: browse_movie_set_params = ''
 			cm_append(['recommended', ('[B]Browse Recommended[/B]', self.window_command % browse_recommended_params)])
-			cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
-			if imdb_id:
+			if imdb_id: cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
+			if imdb_id and settings.trakt_user_active():
 				browse_in_trakt_list_params = self.build_url({'mode': 'trakt.list.in_trakt_lists', 'media_type': 'movie', 'imdb_id': imdb_id,
 											'is_external': self.is_external, 'category_name': '%s In Trakt Lists' % title})
 				cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % browse_in_trakt_list_params)])
 			else: browse_in_trakt_list_params = ''
-			cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
+			if settings.trakt_user_active(): cm_append(['trakt_manager', ('[B]Trakt Lists Manager[/B]', 'RunPlugin(%s)' % trakt_manager_params)])
 			cm_append(['personal_manager', ('[B]Personal Lists Manager[/B]', 'RunPlugin(%s)' % personal_manager_params)])
-			cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
+			if settings.tmdblist_user_active(): cm_append(['tmdb_manager', ('[B]TMDb Lists Manager[/B]', 'RunPlugin(%s)' % tmdb_manager_params)])
 			cm_append(['favorites_manager', ('[B]Favorites Manager[/B]', 'RunPlugin(%s)' % favorites_manager_params)])
 			if playcount:
 				if self.widget_hide_watched: return
@@ -221,9 +220,9 @@ class Movies:
 				'fenlight.browse_recommended_params': browse_recommended_params,
 				'fenlight.browse_more_like_this_params': browse_more_like_this_params,
 				'fenlight.browse_in_trakt_list_params': browse_in_trakt_list_params,
-				'fenlight.trakt_manager_params': trakt_manager_params,
+				'fenlight.trakt_manager_params': trakt_manager_params if settings.trakt_user_active() else '',
 				'fenlight.personal_manager_params': personal_manager_params,
-				'fenlight.tmdb_manager_params': tmdb_manager_params,
+				'fenlight.tmdb_manager_params': tmdb_manager_params if settings.tmdblist_user_active() else '',
 				'fenlight.favorites_manager_params': favorites_manager_params
 				})
 			self.append(((url_params, listitem, False), _position))

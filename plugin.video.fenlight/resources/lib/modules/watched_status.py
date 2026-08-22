@@ -81,7 +81,7 @@ def _record_historical_play(dbcon, media_type, media_id, season=None, episode=No
 		else:
 			dbcon.execute('''UPDATE historical
 						SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
-						WHERE db_type = ? AND media_id = ? AND season = ? AND episode = ? AND profile = ? AND started = ?
+						WHERE db_type = ? AND media_id = ? AND season IS ? AND episode IS ? AND profile = ? AND started = ?
 						ORDER BY started DESC
 						LIMIT 1''',
 						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,

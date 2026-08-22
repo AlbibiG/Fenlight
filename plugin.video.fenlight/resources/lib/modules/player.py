@@ -23,8 +23,8 @@ class FenLightPlayer(xbmc.Player):
             'curr_time': self.curr_time, 
             'total_time': self.total_time, 
             'title': self.title, 
-            'season': self.season, 
-            'episode': self.episode,
+            'season': self.season if self.media_type == 'episode' else None, 
+            'episode': self.episode if self.media_type == 'episode' else None,
             'year': self.year, 
             'tvdb_id': self.tvdb_id
         }

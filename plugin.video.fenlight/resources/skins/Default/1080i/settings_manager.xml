@@ -502,28 +502,12 @@
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.server_ip)</onclick>
                       </item>
                       <item>
-                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),MariaDB)</visible>
-                          <property name="setting_label">External Host</property>
-                          <property name="setting_type">string</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_address)]</property>
-                          <property name="setting_description">The MariaDB API address for watch-history storage</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_address)</onclick>
-                      </item>
-                      <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">Internal Port</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.port)]</property>
                           <property name="setting_description">The internal MariaDB port to use for watch-history storage</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.port)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">External Port</property>
-                          <property name="setting_type">numeric</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_port)]</property>
-                          <property name="setting_description">The external MariaDB port to use for watch-history storage</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.api_port)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
@@ -540,6 +524,22 @@
                           <property name="setting_value">********</property>
                           <property name="setting_description">The internal password used to connect to your MariaDB server</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.password)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">External Host</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_address)]</property>
+                          <property name="setting_description">The MariaDB API address for watch-history storage</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_address)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">External Port</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_port)]</property>
+                          <property name="setting_description">The external MariaDB port to use for watch-history storage</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.api_port)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
@@ -575,7 +575,7 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">Kodi Profile</property>
+                          <property name="setting_label">Profile Name</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.profile_name)]</property>
                           <property name="setting_description">The profile name to associate with the saved watch-history entries</property>

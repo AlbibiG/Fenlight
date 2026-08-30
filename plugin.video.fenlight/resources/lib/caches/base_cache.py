@@ -87,6 +87,13 @@ def connect_database(database_name=None):
 		except Exception as exc:
 			kodi_utils.logger('connect_database MariaDB', severity='high',error_message=str(exc))
 			return False
+	if database_name == 'mariadb_api':
+		try:
+			from apis.mariadb_api import WatchHistoryClient
+			return WatchHistoryClient()
+		except Exception as exc:
+			kodi_utils.logger('connect_database MariaDB API', severity='high', error_message=str(exc))
+			return False
 	else:
 		try:
 			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)

@@ -489,41 +489,81 @@
         <!-- Database Connection -->
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">SQL Database</property>
+                          <property name="setting_label">MariaDB Database and API</property>
                           <property name="setting_type">separator</property>
                           <onclick>noop</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">Host</property>
+                          <property name="setting_label">Internal Host</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.server_ip)]</property>
                           <property name="setting_description">The MariaDB server IP or hostname for watch-history storage</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.server_ip)</onclick>
                       </item>
                       <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),MariaDB)</visible>
+                          <property name="setting_label">External Host</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_address)]</property>
+                          <property name="setting_description">The MariaDB API address for watch-history storage</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_address)</onclick>
+                      </item>
+                      <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">Port</property>
+                          <property name="setting_label">Internal Port</property>
                           <property name="setting_type">numeric</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.port)]</property>
-                          <property name="setting_description">The MariaDB port to use for watch-history storage</property>
+                          <property name="setting_description">The internal MariaDB port to use for watch-history storage</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.port)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">Username</property>
+                          <property name="setting_label">External Port</property>
+                          <property name="setting_type">numeric</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_port)]</property>
+                          <property name="setting_description">The external MariaDB port to use for watch-history storage</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.api_port)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">Internal Username</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.username)]</property>
-                          <property name="setting_description">The username used to connect to your MariaDB server</property>
+                          <property name="setting_description">The internal username used to connect to your MariaDB server</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.username)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">Password</property>
+                          <property name="setting_label">Internal Password</property>
                           <property name="setting_type">password</property>
                           <property name="setting_value">********</property>
-                          <property name="setting_description">The password used to connect to your MariaDB server</property>
+                          <property name="setting_description">The internal password used to connect to your MariaDB server</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.password)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">External Username</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_username)]</property>
+                          <property name="setting_description">The external username used to connect to your MariaDB API</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_username)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">External Password</property>
+                          <property name="setting_type">password</property>
+                          <property name="setting_value">********</property>
+                          <property name="setting_description">The external password used to connect to your MariaDB API</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_password)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">API Key</property>
+                          <property name="setting_type">string</property>
+                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_key)]</property>
+                          <property name="setting_description">The API key used to connect to your MariaDB API</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_key)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
@@ -546,9 +586,9 @@
                           <property name="setting_label">Reconfigure Database Tables</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">Reconfigure</property>
-                          <property name="setting_description">Recreate the watch-history table if missing, then verify its schema, columns, and field types. No data will be affected.</property>
+                          <property name="setting_description">Recreate the watch-history table if missing, then verify its schema, columns, and field types. No data will be affected. Internal database must be connected to perform this action.</property>
                           <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.reconfigure_watch_history_database)</onclick>
-                      </item>
+                      </item>          
         <!-- Manage Addon Updates -->
                       <item>
                           <visible>Container(2000).HasFocus(10)</visible>

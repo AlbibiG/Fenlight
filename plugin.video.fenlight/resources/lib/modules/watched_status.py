@@ -8,7 +8,7 @@ from modules.utils import get_datetime, adjust_premiered_date, sort_for_article,
 from modules import metadata, settings
 
 def get_database(watched_indicator=None):
-	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator or settings.watched_indicators()])
+	conn_db = connect_database({0: 'watched_db', 1: 'trakt_db', 2: 'mariadb', 3: 'mariadb_api'}[watched_indicator or settings.watched_indicators()])
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
 
@@ -71,23 +71,38 @@ def make_batch_insert(action, media_type, media_id, season, episode, last_played
 	else: return (media_type, media_id, season, episode)
 
 def _record_historical_play(dbcon, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0, profile=None):
-	try:
-		if play_event == 'started':
-			dbcon.execute('''INSERT IGNORE INTO historical
-						(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-						(media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
-						profile))
-		else:
-			dbcon.execute('''UPDATE historical
-						SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
-						WHERE db_type = ? AND media_id = ? AND season IS ? AND episode IS ? AND profile = ? AND started = ?
-						ORDER BY started DESC
-						LIMIT 1''',
-						(str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
-						media_type, media_id, season, episode, profile, started))
-	except Exception as e:
-		logger('_record_historical_play', severity='medium', error_message=str(e))
+    try:
+        if settings.watched_indicators() == 2:
+            if play_event == 'started':
+                dbcon.execute('''INSERT IGNORE INTO historical
+                            (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                            (media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title,
+                            profile))
+            else:
+                dbcon.execute('''UPDATE historical
+                            SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
+                            WHERE db_type = ? AND media_id = ? AND season IS ? AND episode IS ? AND profile = ? AND started = ?
+                            ORDER BY started DESC
+                            LIMIT 1''',
+                            (str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
+                            media_type, media_id, season, episode, profile, started))
+        if settings.watched_indicators() == 3:
+            dbcon.record_historical_play(
+                media_type=media_type,
+                media_id=media_id,
+                season=season,
+                episode=episode,
+                title=title,
+                started=started,
+                ended=ended,
+                play_event=play_event,
+                resume_point=str(resume_point),
+                curr_time=str(curr_time),
+                resume_id=int(resume_id)
+            )
+    except Exception as e:
+        logger('_record_historical_play', severity='medium', error_message=str(e))
 
 def _record_historical_plays_batch(dbcon, insert_list):
 	try:
@@ -218,6 +233,11 @@ def watched_info_movie(watched_db=None):
 		try:
 			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?',
 				('movie', _watch_profile_name(watched_indicators))).fetchall()
+			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
+		except: return {}
+	if watched_indicators == 3:
+		try:
+			watched_info = watched_db.get_watched_movies()
 			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
 		except: return {}
 	try:

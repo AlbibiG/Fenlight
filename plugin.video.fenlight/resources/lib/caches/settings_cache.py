@@ -222,7 +222,7 @@ def default_settings():
 {'setting_id': 'update.username', 'setting_type': 'string', 'setting_default': 'AlbibiG'},
 {'setting_id': 'update.location', 'setting_type': 'string', 'setting_default': 'Fenlight'},
 #==================== Watched Indicators
-{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB'}},
+{'setting_id': 'watched_indicators', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Fen Light', '1': 'Trakt', '2': 'MariaDB', '3': 'MariaDB API'}},
 #==================== Watch History Database
 {'setting_id': 'watch_history.server_ip', 'setting_type': 'string', 'setting_default': '127.0.0.1'},
 {'setting_id': 'watch_history.port', 'setting_type': 'action', 'setting_default': '3306', 'min_value': '1', 'max_value': '65535'},
@@ -231,6 +231,11 @@ def default_settings():
 {'setting_id': 'watch_history.database_name', 'setting_type': 'string', 'setting_default': 'fenlight'},
 {'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
 {'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': 'empty_setting'},
+{'setting_id': 'watch_history.api_address', 'setting_type': 'string', 'setting_default': 'https://myapi.example.com'},
+{'setting_id': 'watch_history.api_port', 'setting_type': 'action', 'setting_default': '8000', 'min_value': '1', 'max_value': '65535'},
+{'setting_id': 'watch_history.api_username', 'setting_type': 'string', 'setting_default': 'root'},
+{'setting_id': 'watch_history.api_password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
+{'setting_id': 'watch_history.api_key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},
 {'setting_id': 'trakt.refresh_widgets', 'setting_type': 'boolean', 'setting_default': 'true'},

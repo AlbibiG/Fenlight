@@ -106,24 +106,6 @@ def _record_historical_play(dbcon, media_type, media_id, season=None, episode=No
     except Exception as e:
         logger('_record_historical_play', severity='medium', error_message=str(e))
 
-def _record_historical_plays_batch(dbcon, insert_list):
-	try:
-		if not insert_list: return
-		current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-		profile_name = settings.watch_history_profile_name()
-		batch_params = []
-		for item in insert_list:
-			media_type, media_id, season, episode = item[:4]
-			if len(item) >= 6: started_ended_time, title = item[4:6]
-			else: started_ended_time, title = current_time, None
-			batch_params.append((media_type, media_id, season, episode, '0', '0', started_ended_time,
-				started_ended_time, 'watched', 0, title, profile_name))
-		dbcon.executemany('''INSERT IGNORE INTO historical
-			(db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch_params)
-	except Exception as e:
-		logger('_record_historical_plays_batch', severity='medium', error_message=str(e))
-
 def record_historical_playback_start(params):
 	try:
 		media_type = params.get('media_type')
@@ -235,17 +217,16 @@ def watched_info_movie(watched_db=None):
 		try:
 			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?',
 				('movie', _watch_profile_name(watched_indicators))).fetchall()
-			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
 		except: return {}
 	if watched_indicators == 3:
 		try:
 			watched_info = watched_db.get_watched_movies()
-			return watched_info
 		except: return {}
-	try:
-		watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
-		return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
-	except: return {}
+	else:
+		try:
+			watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
+		except: return {}
+	return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
 
 def get_watched_status_movie(watched_info, media_id):
 	if not watched_info: return 0
@@ -261,19 +242,18 @@ def get_bookmarks_movie(watched_db=None):
 		try:
 			info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ? and profile = ?',
 				('movie', _watch_profile_name(watched_indicators))).fetchall()
-			info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
-		except: info = {}
-		return info
+		except: return {}
 	if watched_indicators == 3:
 		try:
 			info = watched_db.get_bookmarks_movie()
-		except: info = {}
-		return info
-	try:
-		info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
-		info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
-	except: info = {}
-	return info
+		except: return {}
+	else:
+		try:
+			info = watched_db.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
+		except: return {}
+	return dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
+
+
 
 def get_progress_status_movie(progress_info, media_id):
 	try: percent = str(round(float(progress_info[media_id]['resume_point'])))
@@ -319,18 +299,17 @@ def watched_info_season(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	watched_indicators = settings.watched_indicators()
 	if _is_mariadb(watched_indicators):
-		try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
-								('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall())
-		except: watched_info = {}
-		return watched_info
+		try: watched_info = watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
+								('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall()
+		except: return {}
 	if watched_indicators == 3:
 		try: watched_info = watched_db.get_watched_info_season(media_id)
-		except: watched_info = {}
-		return watched_info
-	try: watched_info = dict(watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season',
-								('episode', str(media_id))).fetchall())
-	except: watched_info = {}
-	return watched_info
+		except: return {}
+	else:
+		try: watched_info = watched_db.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season',
+								('episode', str(media_id))).fetchall()
+		except: return {}
+	return dict(watched_info)
 
 def get_watched_status_season(watched_info, aired_eps):
 	if not watched_info: return 0, 0, aired_eps
@@ -353,14 +332,13 @@ def watched_info_episode(media_id, watched_db=None):
 	if _is_mariadb(watched_indicators):
 		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?',
 				('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall()
-		except: watched_info = []
-		return watched_info
+		except: return []
 	if watched_indicators == 3:
 		try: watched_info = watched_db.get_watched_info_episode(media_id)
-		except: watched_info = []
-		return watched_info
-	try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
-	except: watched_info = []
+		except: return []
+	else:
+		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
+		except: return []
 	return watched_info
 
 def get_watched_status_episode(watched_info, season_episode):
@@ -374,19 +352,17 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 		try:
 			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
 				('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
-			info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
-		except: info = {}
-		return info
+		except: return {}
 	if watched_indicators == 3:
 		try:
 			info = watched_db.get_bookmarks_episode(media_id, season)
-		except: info = {}
-		return info
-	try:
-		info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
-			('episode', str(media_id), int(season))).fetchall()
-		info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
-	except: info = {}
+		except: return {}
+	else:
+		try:
+			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
+				('episode', str(media_id), int(season))).fetchall()
+		except: return {}
+	info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
 	return info
 
 def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):
@@ -481,8 +457,6 @@ def set_bookmark(params):
 			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
 							(media_type, tmdb_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, settings.watch_history_profile_name()))
-				_record_historical_play(dbcon, media_type, tmdb_id, season, episode, last_played, title, play_event='stopped', resume_point=resume_point,
-									curr_time=curr_time, resume_id=0)
 			if watched_indicators == 3:
 				dbcon.set_bookmark(media_type=media_type, media_id=tmdb_id, curr_time=curr_time, total_time=total_time, season=season, episode=episode, title=title)
 			else:
@@ -610,14 +584,14 @@ def watched_status_mark(params):
 			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile))
 			if watched_indicators == 3:
-				dbcon.watched_status_mark(db_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title, profile=profile)
+				dbcon.watched_status_mark(media_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title, profile=profile)
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
 			if watched_indicators == 2:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile))
 			if watched_indicators == 3:
-				dbcon.watched_status_mark(db_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title, profile=profile)
+				dbcon.watched_status_mark(media_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title, profile=profile)
 			else:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)
@@ -634,7 +608,6 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 				dbcon.executemany(
 					"INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)", params
 				)
-				_record_historical_plays_batch(dbcon, params)
 			if watched_indicators == 3:
 				dbcon.batch_watched_status_mark(insert_list, action)
 			else:

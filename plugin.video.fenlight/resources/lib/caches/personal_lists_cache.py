@@ -3,7 +3,7 @@ from modules.settings import watch_history_profile_name, watched_indicators
 from modules.kodi_utils import logger
 
 def get_database(watched_indicator=None):
-	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb'}[watched_indicator])
+	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb', 3: 'mariadb_api'}[watched_indicator])
 	if conn_db: return conn_db
 	else: raise Exception('Failed to connect to database.')
 
@@ -75,22 +75,20 @@ class PersonalListsCache:
 		if watched_indicators() == 2:
 			try:
 				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
-				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return []
 		if watched_indicators() == 3:
 			try:
 				all_lists = dbcon.get_lists()
-				return all_lists
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return []
 		else:
 			try:
 				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists').fetchall()
-				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except: return []
+		return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 
 	def get_list(self, list_name, dbcon=None):
 		dbcon = get_database(watched_indicators())
@@ -98,7 +96,7 @@ class PersonalListsCache:
 			try:
 				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name())).fetchone()[0])
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return []
 		else:
 			try:

@@ -754,7 +754,7 @@ def get_recently_watched(media_type, short_list=1):
 			if watched_indicators == 2:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ? ORDER BY last_played DESC', ('episode', settings.watch_history_profile_name())).fetchall()
 			if watched_indicators == 3:
-				data = dbcon.get_recently_watched(short_list=short_list)
+				data = dbcon.get_recently_watched(media_type=media_type, short_list=short_list)
 			else:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? ORDER BY last_played DESC', ('episode',)).fetchall()
 			data = [{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
@@ -765,7 +765,7 @@ def get_recently_watched(media_type, short_list=1):
 			if watched_indicators == 2:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ?', ('episode', settings.watch_history_profile_name())).fetchall()
 			if watched_indicators == 3:
-				data = dbcon.get_recently_watched(short_list=short_list)
+				data = dbcon.get_recently_watched(media_type=media_type, short_list=short_list)
 			else:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ?', ('episode',)).fetchall()
 			data = sorted([{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}

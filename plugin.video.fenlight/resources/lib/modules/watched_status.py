@@ -240,7 +240,7 @@ def watched_info_movie(watched_db=None):
 	if watched_indicators == 3:
 		try:
 			watched_info = watched_db.get_watched_movies()
-			return dict([(i[0], {'media_id': i[0], 'title': i[1], 'last_played': i[2]}) for i in watched_info])
+			return watched_info
 		except: return {}
 	try:
 		watched_info = watched_db.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
@@ -267,7 +267,6 @@ def get_bookmarks_movie(watched_db=None):
 	if watched_indicators == 3:
 		try:
 			info = watched_db.get_bookmarks_movie()
-			info = dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
 		except: info = {}
 		return info
 	try:
@@ -629,13 +628,15 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 	try:
 		dbcon = get_database(watched_indicators)
 		if action == 'mark_as_watched':
-			if watched_indicators in (2, 3):
+			if watched_indicators == 2:
 				profile_name = settings.watch_history_profile_name()
 				params = [item + (profile_name,) for item in insert_list]
 				dbcon.executemany(
 					"INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)", params
 				)
 				_record_historical_plays_batch(dbcon, params)
+			if watched_indicators == 3:
+				dbcon.batch_watched_status_mark(insert_list, action)
 			else:
 				dbcon.executemany(
 					"INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)",
@@ -646,6 +647,8 @@ def batch_watched_status_mark(watched_indicators, insert_list, action):
 				profile_name = settings.watch_history_profile_name()
 				params = [item + (profile_name,) for item in insert_list]
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', params)
+			if watched_indicators == 3:
+				dbcon.batch_watched_status_mark(insert_list, action)
 			else:
 				dbcon.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
 		batch_erase_bookmark(watched_indicators, insert_list, action)

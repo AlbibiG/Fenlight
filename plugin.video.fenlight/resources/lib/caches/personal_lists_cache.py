@@ -77,7 +77,14 @@ class PersonalListsCache:
 				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
 				return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return []
+		if watched_indicators() == 3:
+			try:
+				all_lists = dbcon.get_lists()
+				return all_lists
+			except Exception as e: 
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return []
 		else:
 			try:

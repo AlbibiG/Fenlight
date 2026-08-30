@@ -1,6 +1,7 @@
 from xbmc import getInfoLabel
 from urllib.parse import parse_qsl
 from modules.kodi_utils import external, get_property, logger
+import traceback
 
 def sys_exit_check():
 	if get_property('fenlight.reuse_language_invoker') == 'false': return False
@@ -312,4 +313,4 @@ def routing(sys):
 			from modules.kodi_utils import external_scraper_settings
 			external_scraper_settings()
 	except Exception as e:
-		logger('routing', severity='high', error_message=str(e))
+		logger('routing', severity='high', error_message=str(traceback.format_exc()))

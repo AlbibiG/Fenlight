@@ -15,7 +15,14 @@ class PersonalListsCache:
 				dbcon.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?, ?)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
 				return True
 			except Exception as e:
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return False
+		if watched_indicators() == 3:
+			try:
+				dbcon.make_list(list_name, sort_order)
+				return True
+			except Exception as e:
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return False
 		else:
 			try:
@@ -31,7 +38,14 @@ class PersonalListsCache:
 				dbcon.execute('OPTIMIZE TABLE personal_lists')
 				return True
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return False
+		if watched_indicators() == 3:
+			try:
+				dbcon.delete_list(list_name)
+				return True
+			except Exception as e:
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return False
 		else:
 			try:
@@ -47,7 +61,14 @@ class PersonalListsCache:
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr([]), '0', list_name, watch_history_profile_name()))
 				return True
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return False
+		if watched_indicators() == 3:
+			try:
+				dbcon.clear_list_contents(list_name)
+				return True
+			except Exception as e:
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return False
 		else:
 			try:
@@ -62,7 +83,14 @@ class PersonalListsCache:
 				dbcon.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=? and profile=?', (list_name, sort_order, original_name, watch_history_profile_name()))
 				return True
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return False
+		if watched_indicators() == 3:
+			try:
+				dbcon.update_list_details(list_name, sort_order, original_name)
+				return True
+			except Exception as e: 
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return False
 		else:
 			try:
@@ -98,6 +126,12 @@ class PersonalListsCache:
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return []
+		if watched_indicators() == 3:
+			try:
+				return dbcon.get_list(list_name)
+			except Exception as e: 
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return []
 		else:
 			try:
 				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=?', (list_name,)).fetchone()[0])
@@ -105,9 +139,10 @@ class PersonalListsCache:
 
 	def add_remove_list_item(self, action, new_contents, list_name):
 		dbcon = get_database(watched_indicators())
+		contents = self.get_list(list_name, dbcon)
+
 		if watched_indicators() == 2:
 			try:
-				contents = self.get_list(list_name, dbcon)
 				if action == 'add':
 					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
 					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=? and profile=?'
@@ -119,11 +154,17 @@ class PersonalListsCache:
 				dbcon.execute(command, (repr(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return 'Error'
+		if watched_indicators() == 3:
+			try:
+				dbcon.add_remove_list_item(action, new_contents, list_name)
+				return 'Success'
+			except Exception as e: 
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return 'Error'
 		else:
 			try:
-				contents = self.get_list(list_name, dbcon)
 				if action == 'add':
 					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
 					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=?'
@@ -138,23 +179,26 @@ class PersonalListsCache:
 
 	def add_many_list_items(self, new_contents, list_name):
 		dbcon = get_database(watched_indicators())
+		contents = self.get_list(list_name, dbcon)
+		compare_ids = [str(i['media_id']) for i in contents]
+		new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]
+		contents.extend(new_contents)
 		if watched_indicators() == 2:
 			try:
-				contents = self.get_list(list_name, dbcon)
-				compare_ids = [str(i['media_id']) for i in contents]
-				new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]
-				contents.extend(new_contents)
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr(contents), len(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='high', error_message=str(e))
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
+				return 'Error'
+		if watched_indicators() == 3:
+			try:
+				dbcon.add_many_list_items(new_contents, list_name)
+				return 'Success'
+			except Exception as e: 
+				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return 'Error'
 		else:
 			try:
-				contents = self.get_list(list_name, dbcon)
-				compare_ids = [str(i['media_id']) for i in contents]
-				new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]
-				contents.extend(new_contents)
 				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr(contents), len(contents), list_name))
 				return 'Success'
 			except: return 'Error'

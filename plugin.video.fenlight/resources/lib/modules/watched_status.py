@@ -253,8 +253,6 @@ def get_bookmarks_movie(watched_db=None):
 		except: return {}
 	return dict([(i[0], {'media_id': i[0], 'resume_point': i[1], 'curr_time': i[2], 'resume_id': i[3]}) for i in info])
 
-
-
 def get_progress_status_movie(progress_info, media_id):
 	try: percent = str(round(float(progress_info[media_id]['resume_point'])))
 	except: percent = None
@@ -267,18 +265,16 @@ def watched_info_tvshow(watched_db=None):
 		try:
 			data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
 					('episode', _watch_profile_name(watched_indicators))).fetchall()
-			return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
 		except: return {}
 	if watched_indicators == 3:
 		try: data = watched_db.get_watched_info_tvshow()
-		except: data = {}
-		return data
-	try:
-		data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id',
-			('episode',)).fetchall()
-		return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
-	except: return {}
-
+		except: return {}
+	else:
+		try:
+			data = watched_db.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id',
+				('episode',)).fetchall()
+		except: return {}
+	return dict([(i[0], {'media_id': i[0], 'season': i[1], 'episode': i[2], 'title': i[3], 'last_played': i[4], 'total_played': i[5]}) for i in data])
 
 def get_watched_status_tvshow(watched_info, aired_eps):
 	if not watched_info: return 0, 0, aired_eps
@@ -362,8 +358,7 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
 				('episode', str(media_id), int(season))).fetchall()
 		except: return {}
-	info = dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
-	return info
+	return dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
 
 def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):
 	if not watched_db: watched_db = get_database()

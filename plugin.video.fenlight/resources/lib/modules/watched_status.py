@@ -402,7 +402,7 @@ def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='fal
 				trakt_progress('clear_progress', media_type, media_id, 0, season, episode, resume_id)
 			except: pass
 		if watched_indicators == 2:
-			watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?', (media_type, media_id, season, episode, settings.watch_history_profile_name()))
+			watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?', (media_type, media_id, season, episode, watched_indicators))
 		elif watched_indicators == 3:
 			watched_db.erase_bookmark(media_type, media_id, season, episode)
 		else:

@@ -402,7 +402,7 @@ def erase_bookmark(media_type, media_id, season=None, episode=None, refresh='fal
 				trakt_progress('clear_progress', media_type, media_id, 0, season, episode, resume_id)
 			except: pass
 		if watched_indicators == 2:
-			watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?', (media_type, media_id, season, episode, watched_indicators))
+			watched_db.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?', (media_type, media_id, season, episode, settings.watch_history_profile_name()))
 		elif watched_indicators == 3:
 			watched_db.erase_bookmark(media_type, media_id, season, episode)
 		else:
@@ -703,6 +703,7 @@ def get_in_progress_episodes():
 		data = dbcon.get_in_progress_episodes()
 	else:
 		data = dbcon.execute('SELECT media_id, season, episode, resume_point, last_played, title FROM progress WHERE db_type = ?', ('episode',)).fetchall()
+	data = list(data)
 	if settings.lists_sort_order('progress') == 0: data = sort_for_article(data, 5)
 	else: data.sort(key=lambda k: k[4], reverse=True)
 	episode_list = [{'media_ids': {'tmdb': i[0]}, 'season': int(i[1]), 'episode': int(i[2]), 'resume_point': float(i[3])} for i in data]

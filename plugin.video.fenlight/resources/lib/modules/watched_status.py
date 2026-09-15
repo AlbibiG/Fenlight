@@ -350,6 +350,7 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 		try:
 			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
 				('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
+			logger('get_bookmarks_episode', notification_message= info, severity='low', notify = True, error_message='Fetched info: %s' % str(info))
 		except: return {}
 	elif watched_indicators == 3:
 		try:
@@ -375,6 +376,7 @@ def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):
 def get_progress_status_episode(progress_info, episode):
 	try: percent = str(round(float(progress_info[episode]['resume_point'])))
 	except: percent = None
+	logger('get_progress_status_episode', notification_message=percent, severity='low', notify = True, error_message='Calculated progress: %s' % str(percent))
 	return percent
 
 def get_progress_status_all_episode(progress_info, season, episode):
@@ -706,8 +708,7 @@ def get_in_progress_episodes():
 	data = list(data)
 	if settings.lists_sort_order('progress') == 0: data = sort_for_article(data, 5)
 	else: data.sort(key=lambda k: k[4], reverse=True)
-	episode_list = [{'media_ids': {'tmdb': i[0]}, 'season': int(i[1]), 'episode': int(i[2]), 'resume_point': float(i[3])} for i in data]
-	logger('get_in_progress_episodes', episode_list, 'medium', True, episode_list)
+	episode_list = [{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'resume_point': float(i[3])} for i in data]
 	return episode_list
 
 def get_watched_items(media_type, page_no):

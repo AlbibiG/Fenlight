@@ -709,7 +709,7 @@ def get_in_progress_episodes():
 	data = list(data)
 	if settings.lists_sort_order('progress') == 0: data = sort_for_article(data, 5)
 	else: data.sort(key=lambda k: k[4], reverse=True)
-	episode_list = [{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'resume_point': float(i[3])} for i in data]
+	episode_list = [{'media_ids': {'tmdb': i[0]}, 'season': int(i[1]), 'episode': int(i[2]), 'resume_point': float(i[3])} for i in data]
 	return episode_list
 
 def get_watched_items(media_type, page_no):
@@ -734,7 +734,7 @@ def get_recently_watched(media_type, short_list=1):
 				data = dbcon.get_recently_watched(media_type=media_type, short_list=short_list)
 			else:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? ORDER BY last_played DESC', ('episode',)).fetchall()
-			data = [{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
+			data = [{'media_ids': {'tmdb': i[0]}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
 						for i in data][:20]
 		else:
 			seen = set()
@@ -745,7 +745,7 @@ def get_recently_watched(media_type, short_list=1):
 				data = dbcon.get_recently_watched(media_type=media_type, short_list=short_list)
 			else:
 				data = dbcon.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ?', ('episode',)).fetchall()
-			data = sorted([{'media_ids': {'tmdb': int(i[0])}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
+			data = sorted([{'media_ids': {'tmdb': i[0]}, 'season': int(i[1]), 'episode': int(i[2]), 'title': i[3], 'last_played': i[4]}
 						for i in sorted(data, key=lambda x: (x[4], x[0], x[1], x[2]), reverse=True) if not (i[0] in seen or seen_add(i[0]))],
 						key=lambda x: (x['last_played'], x['media_ids']['tmdb'], x['season'], x['episode']), reverse=True)
 	return data

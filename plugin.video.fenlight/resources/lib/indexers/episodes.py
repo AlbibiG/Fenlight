@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
 import sys
 from modules import kodi_utils, settings, watched_status as ws
 from modules.metadata import tvshow_meta, episodes_meta, all_episodes_meta
 from modules.utils import jsondate_to_datetime, adjust_premiered_date, make_day, get_datetime, title_key, date_difference, TaskPool
-# logger = kodi_utils.logger
 
 def build_episode_list(params):
 	def _process():
 		for item in episodes_data:
 			try:
-				kodi_utils.logger('_process', notification_message=item, severity='low', notify = True, error_message='Processing item: %s' % str(item))
 				cm = []
 				cm_append = cm.append
 				listitem = make_listitem()
@@ -84,7 +81,9 @@ def build_episode_list(params):
 					'fenlight.playback_options_params': playback_options_params
 					})
 				yield (url_params, listitem, False)
-			except: pass
+			except Exception as e: 
+				kodi_utils.logger('_process', notification_message=item, severity='low', notify = True, error_message='Error: %s' % str(e))
+				pass
 	kodi_actor, make_listitem, build_url = kodi_utils.kodi_actor(), kodi_utils.make_listitem, kodi_utils.build_url
 	poster_empty, fanart_empty = kodi_utils.get_icon('box_office'), kodi_utils.addon_fanart()
 	handle, is_external, is_home = int(sys.argv[1]), kodi_utils.external(), kodi_utils.home()

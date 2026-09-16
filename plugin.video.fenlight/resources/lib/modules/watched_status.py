@@ -327,9 +327,10 @@ def get_progress_status_season(watched, aired_eps):
 def watched_info_episode(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	watched_indicators = settings.watched_indicators()
+	logger('watched_mediaid', severity = 'low', error_message = str(media_id))
+	logger('watched_db', severity = 'low', error_message = watched_db)
 	if _is_mariadb(watched_indicators):
-		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?',
-				('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall()
+		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?', ('episode', str(media_id), _watch_profile_name(watched_indicators))).fetchall()
 		except: return []
 	elif watched_indicators == 3:
 		try: watched_info = watched_db.get_watched_info_episode(media_id)
@@ -346,10 +347,12 @@ def get_watched_status_episode(watched_info, season_episode):
 def get_bookmarks_episode(media_id, season, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	watched_indicators = settings.watched_indicators()
+	logger('bookmarks_mediaid', severity = 'low', error_message = str(media_id))
+	logger('bookmarks_season', severity = 'low', error_message = int(season))
+	logger('bookmarks_db', severity = 'low', error_message = watched_db)
 	if _is_mariadb(watched_indicators):
 		try:
-			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
-				('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
+			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?', ('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
 		except: return {}
 	elif watched_indicators == 3:
 		try:

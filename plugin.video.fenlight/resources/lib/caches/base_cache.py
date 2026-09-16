@@ -1,4 +1,5 @@
 import time
+import threading
 from os import path
 import sqlite3 as database
 from modules import kodi_utils
@@ -325,6 +326,8 @@ class SQLDatabaseWrapper:
 	def __init__(self, connection):
 		self.connection = connection
 		self.is_sql = True
+		# a single pymysql socket connection is shared across worker threads and isn't thread-safe, so serialize access
+		self._lock = threading.Lock()
 	
 	def _convert_query(self, query):
 		"""Convert SQLite syntax to MariaDB syntax"""
@@ -337,25 +340,27 @@ class SQLDatabaseWrapper:
 	
 	def execute(self, query, params=None):
 		"""Execute query and return cursor with results"""
-		try:
-			query = self._convert_query(query)
-			cursor = self.connection.cursor()
-			if params:
-				cursor.execute(query, params)
-			else:
-				cursor.execute(query)
-			self.connection.commit()
-			return cursor
-		except Exception as exc:
-			raise
+		with self._lock:
+			try:
+				query = self._convert_query(query)
+				cursor = self.connection.cursor()
+				if params:
+					cursor.execute(query, params)
+				else:
+					cursor.execute(query)
+				self.connection.commit()
+				return cursor
+			except Exception as exc:
+				raise
 	
 	def executemany(self, query, params_list):
 		"""Execute query multiple times with different parameters"""
-		try:
-			query = self._convert_query(query)
-			cursor = self.connection.cursor()
-			cursor.executemany(query, params_list)
-			self.connection.commit()
-			cursor.close()
-		except Exception as exc:
-			raise
+		with self._lock:
+			try:
+				query = self._convert_query(query)
+				cursor = self.connection.cursor()
+				cursor.executemany(query, params_list)
+				self.connection.commit()
+				cursor.close()
+			except Exception as exc:
+				raise

@@ -337,7 +337,7 @@ def watched_info_episode(media_id, watched_db=None):
 	else:
 		try: watched_info = watched_db.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
 		except: return []
-	return watched_info
+	return list(watched_info)
 
 def get_watched_status_episode(watched_info, season_episode):
 	if season_episode in watched_info: return 1

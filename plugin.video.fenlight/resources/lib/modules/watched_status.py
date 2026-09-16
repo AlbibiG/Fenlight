@@ -375,8 +375,9 @@ def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):
 
 def get_progress_status_episode(progress_info, episode):
 	try: percent = str(round(float(progress_info[episode]['resume_point'])))
-	except: percent = None
-	logger('get_progress_status_episode', notification_message=percent, severity='low', notify = True, error_message='Calculated progress: %s' % str(percent))
+	except Exception as e: 
+		logger('get_progress_status_episode', notification_message=progress_info[episode], severity='low', notify = True, error_message='Error: %s' % str(e))
+		percent = None
 	return percent
 
 def get_progress_status_all_episode(progress_info, season, episode):

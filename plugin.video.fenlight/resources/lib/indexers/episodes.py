@@ -9,6 +9,7 @@ def build_episode_list(params):
 	def _process():
 		for item in episodes_data:
 			try:
+				kodi_utils.logger('_process', notification_message=item, severity='low', notify = True, error_message='Processing item: %s' % str(item))
 				cm = []
 				cm_append = cm.append
 				listitem = make_listitem()

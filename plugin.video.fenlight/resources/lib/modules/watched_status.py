@@ -347,11 +347,11 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	watched_indicators = settings.watched_indicators()
 	if _is_mariadb(watched_indicators):
-		#try:
-		info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
-			('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
-		#except: 
-		#	return {}
+		try:
+			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
+				('episode', str(media_id), int(season), _watch_profile_name(watched_indicators))).fetchall()
+		except: 
+			return {}
 	elif watched_indicators == 3:
 		try:
 			info = watched_db.get_bookmarks_episode(media_id, season)

@@ -293,7 +293,7 @@ def build_single_episode(list_type, params={}):
 	api_key, mpaa_region_value = settings.tmdb_api_key(), settings.mpaa_region()
 	cm_sort_order = settings.cm_sort_order()
 	rpdb_api_key = settings.rpdb_api_key('tvshow')
-	watched_db = ws.get_database(watched_indicators)
+	#watched_db = ws.get_database(watched_indicators)
 	watched_title = 'Trakt' if watched_indicators == 1 else 'Fen Light'
 	if list_type == 'episode.next':
 		include_unwatched, include_unaired, nextep_content = settings.nextep_include_unwatched(), settings.nextep_include_unaired(), settings.nextep_method()

@@ -1,5 +1,4 @@
 import time
-import threading
 from os import path
 import sqlite3 as database
 from modules import kodi_utils
@@ -84,7 +83,7 @@ def connect_database(database_name=None):
 	if database_name == 'mariadb':
 		try:
 			from caches.mariadb_cache import connect
-			return SQLDatabaseWrapper(connect())
+			return SQLDatabaseWrapper(connect)
 		except Exception as exc:
 			kodi_utils.logger('connect_database MariaDB', severity='high',error_message=str(exc))
 			return False
@@ -322,12 +321,11 @@ class BaseCache(object):
 		return connect_database(dbfile)
 
 class SQLDatabaseWrapper:
-	"""Wrapper for SQL database connection to provide compatible interface"""
-	def __init__(self, connection):
-		self.connection = connection
+	"""Wrapper for MariaDB access. Checks out a pooled connection per call so concurrent
+	threads each get their own socket instead of racing on a single shared connection."""
+	def __init__(self, connection_factory):
+		self._connection_factory = connection_factory
 		self.is_sql = True
-		# a single pymysql socket connection is shared across worker threads and isn't thread-safe, so serialize access
-		self._lock = threading.Lock()
 	
 	def _convert_query(self, query):
 		"""Convert SQLite syntax to MariaDB syntax"""
@@ -339,28 +337,29 @@ class SQLDatabaseWrapper:
 		return query
 	
 	def execute(self, query, params=None):
-		"""Execute query and return cursor with results"""
-		with self._lock:
-			try:
-				query = self._convert_query(query)
-				cursor = self.connection.cursor()
-				if params:
-					cursor.execute(query, params)
-				else:
-					cursor.execute(query)
-				self.connection.commit()
-				return cursor
-			except Exception as exc:
-				raise
+		"""Execute query on a per-call pooled connection and return a fully buffered cursor"""
+		query = self._convert_query(query)
+		connection = self._connection_factory()
+		try:
+			cursor = connection.cursor()
+			if params:
+				cursor.execute(query, params)
+			else:
+				cursor.execute(query)
+			connection.commit()
+			return cursor
+		finally:
+			# safe to release now: results are already buffered client-side by the cursor
+			connection.close()
 	
 	def executemany(self, query, params_list):
-		"""Execute query multiple times with different parameters"""
-		with self._lock:
-			try:
-				query = self._convert_query(query)
-				cursor = self.connection.cursor()
-				cursor.executemany(query, params_list)
-				self.connection.commit()
-				cursor.close()
-			except Exception as exc:
-				raise
+		"""Execute query multiple times with different parameters on a per-call pooled connection"""
+		query = self._convert_query(query)
+		connection = self._connection_factory()
+		try:
+			cursor = connection.cursor()
+			cursor.executemany(query, params_list)
+			connection.commit()
+			cursor.close()
+		finally:
+			connection.close()

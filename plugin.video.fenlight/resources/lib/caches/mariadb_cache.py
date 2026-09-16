@@ -47,8 +47,14 @@ class ConnectionPool:
 
     def get(self):
         with _pool_lock:
-            if self._available:
+            while self._available:
                 connection = self._available.popleft()
+                try:
+                    connection.ping(reconnect=True)
+                except Exception:
+                    try: connection.close()
+                    except Exception: pass
+                    continue
                 return _PooledConnection(self, connection)
             return _PooledConnection(self, pymysql.connect(**get_connection_config()))
 

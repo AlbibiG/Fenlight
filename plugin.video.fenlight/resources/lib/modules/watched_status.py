@@ -569,7 +569,6 @@ def mark_episode(params):
 		logger('mark_episode', severity='medium', error_message=str(e))
 
 def watched_status_mark(params):
-	logger('watched_status_mark', notification_message=params)
 	watched_indicators = settings.watched_indicators()
 	media_type, media_id, action, season, episode, title, profile = params.get('media_type'), params.get('tmdb_id'), params.get('action'), params.get('season', None), params.get('episode', None), params.get('title'), params.get('profile', settings.watch_history_profile_name())
 	try:

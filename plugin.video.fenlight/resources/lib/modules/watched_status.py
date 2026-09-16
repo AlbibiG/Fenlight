@@ -626,12 +626,12 @@ def get_next_episodes(nextep_content):
 	watched_db = get_database()
 	if nextep_content == 0:
 		if settings.watched_indicators() == 2:
-			data = watched_db.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type == ? and profile = ?)
+			data = watched_db.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type = ? and profile = ?)
 									SELECT media_id, season, episode, title, last_played FROM cte WHERE rn = 1''', ('episode', settings.watch_history_profile_name())).fetchall()
 		elif settings.watched_indicators() == 3:
 			data = watched_db.get_next_episodes()
 		else:
-			data = watched_db.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type == ?)
+			data = watched_db.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type = ?)
 												SELECT media_id, season, episode, title, last_played FROM cte WHERE rn = 1''', ('episode',)).fetchall()
 	else:
 		if settings.watched_indicators() == 2:

@@ -81,9 +81,7 @@ def build_episode_list(params):
 					'fenlight.playback_options_params': playback_options_params
 					})
 				yield (url_params, listitem, False)
-			except Exception as e: 
-				kodi_utils.logger('_process', notification_message=item, severity='low', notify = True, error_message='Error: %s' % str(e))
-				pass
+			except: pass
 	kodi_actor, make_listitem, build_url = kodi_utils.kodi_actor(), kodi_utils.make_listitem, kodi_utils.build_url
 	poster_empty, fanart_empty = kodi_utils.get_icon('box_office'), kodi_utils.addon_fanart()
 	handle, is_external, is_home = int(sys.argv[1]), kodi_utils.external(), kodi_utils.home()

@@ -360,6 +360,9 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 			info = watched_db.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
 				('episode', str(media_id), int(season))).fetchall()
 		except: return {}
+	from modules.kodi_utils import logger
+	logger('get_bookmarks_episode_debug', error_message='media_id=%s(%s) season=%s(%s) raw_info=%s' % \
+		(media_id, type(media_id), season, type(season), info), severity='low', notify=False)
 	return dict([(i[3], {'resume_point': i[0], 'curr_time': i[1], 'resume_id': i[2]}) for i in info])
 
 def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):

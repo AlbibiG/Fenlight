@@ -133,6 +133,11 @@ def subtract_dates(date1, date2):
 	return day
 
 def datetime_workaround(data, str_format):
+	if isinstance(data, str) and 'T' in data:
+		data = data.replace('T', ' ').replace('Z', '')
+		if '.' in data:
+			data = data.split('.')[0]
+
 	try: datetime_object = datetime.strptime(data, str_format)
 	except: datetime_object = datetime(*(time.strptime(data, str_format)[0:6]))
 	return datetime_object

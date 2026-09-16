@@ -200,8 +200,9 @@ def build_single_episode(list_type, params={}):
 			if not list_type_starts_with('next_'): playcount = ws.get_watched_status_episode(watched_info, (season, episode))
 			if list_type_compare == 'progress':
 				kodi_utils.logger('build_single_episode.progress_debug',
-					'tmdb_id=%s season=%s episode=%s bookmarks=%s progress=%s playcount=%s unaired=%s watched_info=%s ep_data=%s' % \
-					(tmdb_id, season, episode, bookmarks, progress, playcount, unaired, watched_info, ep_data))
+					error_message='tmdb_id=%s season=%s episode=%s bookmarks=%s progress=%s playcount=%s unaired=%s watched_info=%s ep_data=%s' % \
+					(tmdb_id, season, episode, bookmarks, progress, playcount, unaired, watched_info, ep_data),
+					severity='low', notify=False)
 			if list_type_starts_with('next_'):
 				if include_airdate:
 					if episode_date: display_premiered = '[%s] ' % make_day(current_date, episode_date)

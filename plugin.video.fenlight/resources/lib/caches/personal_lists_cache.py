@@ -140,9 +140,8 @@ class PersonalListsCache:
 	def add_remove_list_item(self, action, new_contents, list_name):
 		dbcon = get_database(watched_indicators())
 		contents = self.get_list(list_name, dbcon)
-
-		if watched_indicators() == 2:
-			try:
+		try:
+			if watched_indicators() == 2:
 				if action == 'add':
 					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
 					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=? and profile=?'
@@ -153,18 +152,16 @@ class PersonalListsCache:
 					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
 				dbcon.execute(command, (repr(contents), list_name, watch_history_profile_name()))
 				return 'Success'
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return 'Error'
-		if watched_indicators() == 3:
-			try:
-				dbcon.add_remove_list_item(action, new_contents, list_name, contents)
+			elif watched_indicators() == 3:
+				if action == 'add':
+					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
+					contents.append(new_contents)
+				else:
+					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
+					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
+				dbcon.add_remove_list_item(action, repr(contents), list_name)
 				return 'Success'
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return 'Error'
-		else:
-			try:
+			else:
 				if action == 'add':
 					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
 					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=?'
@@ -175,7 +172,9 @@ class PersonalListsCache:
 					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
 				dbcon.execute(command, (repr(contents), list_name))
 				return 'Success'
-			except: return 'Error'
+		except Exception as e:
+			logger('personal_lists_cache', severity='medium', error_message=str(e))
+			return 'Error'
 
 	def add_many_list_items(self, new_contents, list_name):
 		dbcon = get_database(watched_indicators())

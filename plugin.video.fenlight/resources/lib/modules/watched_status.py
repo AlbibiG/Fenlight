@@ -339,7 +339,14 @@ def watched_info_episode(media_id, watched_db=None):
 	return watched_info
 
 def get_watched_status_episode(watched_info, season_episode):
-	if season_episode in watched_info: return 1
+	target = tuple(int(x) for x in season_episode)
+	for item in watched_info:
+		if isinstance(item, dict):
+			curr = (int(item.get('season')), int(item.get('episode')))
+		else:
+			curr = tuple(int(x) for x in item)
+		if curr == target:
+			return 1    
 	return 0
 
 def get_bookmarks_episode(media_id, season, watched_db=None):

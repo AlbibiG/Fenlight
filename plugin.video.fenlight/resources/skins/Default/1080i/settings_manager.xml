@@ -535,30 +535,6 @@
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">External Port</property>
-                          <property name="setting_type">numeric</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_port)]</property>
-                          <property name="setting_description">The external MariaDB port to use for watch-history storage</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_numeric&amp;setting_id=watch_history.api_port)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">External Username</property>
-                          <property name="setting_type">string</property>
-                          <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_username)]</property>
-                          <property name="setting_description">The external username used to connect to your MariaDB API</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_username)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
-                          <property name="setting_label">External Password</property>
-                          <property name="setting_type">password</property>
-                          <property name="setting_value">********</property>
-                          <property name="setting_description">The external password used to connect to your MariaDB API</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.api_password)</onclick>
-                      </item>
-                      <item>
-                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
                           <property name="setting_label">API Key</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.api_key)]</property>

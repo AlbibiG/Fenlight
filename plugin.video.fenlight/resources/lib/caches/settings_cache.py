@@ -232,9 +232,6 @@ def default_settings():
 {'setting_id': 'watch_history.profile_name', 'setting_type': 'string', 'setting_default': 'default'},
 {'setting_id': 'watch_history.reconfigure', 'setting_type': 'action', 'setting_default': 'empty_setting'},
 {'setting_id': 'watch_history.api_address', 'setting_type': 'string', 'setting_default': 'https://myapi.example.com'},
-{'setting_id': 'watch_history.api_port', 'setting_type': 'action', 'setting_default': '8000', 'min_value': '1', 'max_value': '65535'},
-{'setting_id': 'watch_history.api_username', 'setting_type': 'string', 'setting_default': 'root'},
-{'setting_id': 'watch_history.api_password', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 {'setting_id': 'watch_history.api_key', 'setting_type': 'string', 'setting_default': 'empty_setting'},
 #======+============= Trakt Cache
 {'setting_id': 'trakt.sync_interval', 'setting_type': 'action', 'setting_default': '60', 'min_value': '5', 'max_value': '600'},

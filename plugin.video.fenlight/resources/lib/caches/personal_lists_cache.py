@@ -158,7 +158,7 @@ class PersonalListsCache:
 				return 'Error'
 		if watched_indicators() == 3:
 			try:
-				dbcon.add_remove_list_item(action, new_contents, list_name)
+				dbcon.add_remove_list_item(action, new_contents, list_name, contents)
 				return 'Success'
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
@@ -192,7 +192,7 @@ class PersonalListsCache:
 				return 'Error'
 		if watched_indicators() == 3:
 			try:
-				dbcon.add_many_list_items(new_contents, list_name)
+				dbcon.add_many_list_items(repr(contents), len(contents), list_name)
 				return 'Success'
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))

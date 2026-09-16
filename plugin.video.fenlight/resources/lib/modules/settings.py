@@ -64,15 +64,6 @@ def watch_history_profile_name():
 def watch_history_api_address():
 	return get_setting('fenlight.watch_history.api_address', 'https://myapi.example.com')
 
-def watch_history_api_port():
-	return int(get_setting('fenlight.watch_history.api_port', '8000'))
-
-def watch_history_api_username():
-	return get_setting('fenlight.watch_history.api_username', 'root')
-
-def watch_history_api_password():
-	return get_setting('fenlight.watch_history.api_password', '')
-
 def watch_history_api_key():
 	return get_setting('fenlight.watch_history.api_key', '')
 

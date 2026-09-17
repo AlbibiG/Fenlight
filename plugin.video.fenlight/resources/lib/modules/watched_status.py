@@ -585,14 +585,14 @@ def watched_status_mark(params):
 			if watched_indicators == 2:
 				dbcon.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile))
 			elif watched_indicators == 3:
-				dbcon.watched_status_mark(media_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title)
+				dbcon.watched_status_mark(media_type=media_type, media_id=str(media_id), action=action, season=season, episode=episode, last_played=last_played, title=title)
 			else:
 				dbcon.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
 			if watched_indicators == 2:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile))
 			elif watched_indicators == 3:
-				dbcon.watched_status_mark(media_type=media_type, media_id=media_id, action=action, season=season, episode=episode, last_played=last_played, title=title)
+				dbcon.watched_status_mark(media_type=media_type, media_id=str(media_id), action=action, season=season, episode=episode, last_played=last_played, title=title)
 			else:
 				dbcon.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
 		erase_bookmark(media_type, media_id, season, episode)

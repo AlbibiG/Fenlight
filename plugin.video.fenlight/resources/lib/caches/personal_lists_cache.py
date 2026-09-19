@@ -1,6 +1,7 @@
 from caches.base_cache import connect_database, get_timestamp
 from modules.settings import watch_history_profile_name, watched_indicators
 from modules.kodi_utils import logger
+import json
 
 def get_database(watched_indicator=None):
 	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb', 3: 'mariadb_api'}[watched_indicator])
@@ -12,7 +13,7 @@ class PersonalListsCache:
 		dbcon = get_database(watched_indicators())
 		if watched_indicators() == 2:
 			try:
-				dbcon.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?, ?)', (list_name, repr([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
+				dbcon.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?, ?)', (list_name, json.dumps([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
 				return True
 			except Exception as e:
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
@@ -58,7 +59,7 @@ class PersonalListsCache:
 		dbcon = get_database(watched_indicators())
 		if watched_indicators() == 2:
 			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr([]), '0', list_name, watch_history_profile_name()))
+				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (json.dumps([]), '0', list_name, watch_history_profile_name()))
 				return True
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
@@ -150,7 +151,7 @@ class PersonalListsCache:
 					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
 					command = 'UPDATE personal_lists SET contents=?, total=total-1 WHERE name=? and profile=?'
 					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
-				dbcon.execute(command, (repr(contents), list_name, watch_history_profile_name()))
+				dbcon.execute(command, (json.dumps(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			elif watched_indicators() == 3:
 				if action == 'add':
@@ -159,7 +160,7 @@ class PersonalListsCache:
 				else:
 					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
 					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
-				dbcon.add_remove_list_item(action, repr(contents), list_name)
+				dbcon.add_remove_list_item(action, json.dumps(contents), list_name)
 				return 'Success'
 			else:
 				if action == 'add':
@@ -184,14 +185,14 @@ class PersonalListsCache:
 		contents.extend(new_contents)
 		if watched_indicators() == 2:
 			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (repr(contents), len(contents), list_name, watch_history_profile_name()))
+				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (json.dumps(contents), len(contents), list_name, watch_history_profile_name()))
 				return 'Success'
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
 				return 'Error'
 		if watched_indicators() == 3:
 			try:
-				dbcon.add_many_list_items(repr(contents), len(contents), list_name)
+				dbcon.add_many_list_items(json.dumps(contents), len(contents), list_name)
 				return 'Success'
 			except Exception as e: 
 				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))

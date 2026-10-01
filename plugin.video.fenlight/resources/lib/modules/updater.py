@@ -9,7 +9,7 @@ from modules import kodi_utils
 # logger = kodi_utils.logger
 
 def get_location(insert=''):
-	return 'https://github.com/%s/%s/raw/main/%s/packages' % (get_setting('fenlight.update.username'), get_setting('update.location'), insert)
+	return 'https://github.com/%s/%s/raw/main/%s' % (get_setting('fenlight.update.username'), get_setting('update.location'), insert)
 
 def get_versions():
 	try:
@@ -59,7 +59,7 @@ def update_check(action=4):
 
 def rollback_check():
 	current_version = get_versions()[0]
-	url = get_location()
+	url = get_location('packages')
 	kodi_utils.show_busy_dialog()
 	results = requests.get(url)
 	kodi_utils.hide_busy_dialog()
@@ -83,7 +83,7 @@ def update_addon(new_version, action):
 	kodi_utils.execute_builtin('ActivateWindow(Home)', True)
 	kodi_utils.notification('Fen Light Performing Rollback' if action == 5 else 'Fen Light Performing Update', icon=kodi_utils.get_icon('downloads'))
 	zip_name = 'plugin.video.fenlight-%s.zip' % new_version
-	url = get_location('%s') % zip_name
+	url = get_location('packages/%s') % zip_name
 	kodi_utils.show_busy_dialog()
 	result = requests.get(url, stream=True)
 	kodi_utils.hide_busy_dialog()

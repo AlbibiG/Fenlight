@@ -74,6 +74,7 @@ class FenLightPlayer(xbmc.Player):
         ku.close_all_dialog()
 
     def monitor(self):
+        history_worker, media_started = None, None
         try:
             ensure_dialog_dead, total_check_time = False, 0
             if self.media_type == 'episode':
@@ -92,11 +93,10 @@ class FenLightPlayer(xbmc.Player):
             if st.watched_indicators() not in (0, 1):
                 media_started = get_datetime(dt=True).strftime('%Y-%m-%d %H:%M:%S')
                 params = self.create_params({'started' : media_started})
-                Thread(target=ws.record_historical_playback_start, args=(params,)).start()
+                history_worker = ws.PlaybackHistoryWorker(params)
             ku.hide_busy_dialog()
             ku.sleep(1000)
 
-            self.init_rounded_current_point = -1
             while self.isPlayingVideo():
                 try:
                     try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
@@ -106,11 +106,9 @@ class FenLightPlayer(xbmc.Player):
                         self.playback_close_dialogs()
                     ku.sleep(1000)
                     self.current_point = round(float(self.curr_time/self.total_time * 100), 1)
-                    self.rounded_current_point = int(self.current_point)
-                    if self.rounded_current_point > self.init_rounded_current_point and st.watched_indicators() not in (0, 1):
+                    if history_worker:
                         params = self.create_params({'started': media_started})
-                        Thread(target=ws.record_historical_playback_stop, args=(params,)).start()
-                        self.init_rounded_current_point = self.rounded_current_point
+                        history_worker.update(params)
                     if self.current_point >= 90:
                         if play_random_continual: self.run_random_continual(); break
                         if not self.media_marked: self.media_watched_marker()
@@ -127,6 +125,10 @@ class FenLightPlayer(xbmc.Player):
             self.sources_object.playback_successful = False
             self.sources_object.cancel_all_playback = True
             return self.kill_dialog()
+        finally:
+            if history_worker:
+                try: history_worker.close(self.create_params({'started': media_started}))
+                except: history_worker.close()
 
     def make_listing(self):
         listitem = ku.make_listitem()

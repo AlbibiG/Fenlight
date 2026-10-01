@@ -1,5 +1,6 @@
 from datetime import datetime
-from threading import Thread
+from threading import Condition, Thread
+from time import monotonic
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
 from caches.base_cache import connect_database, database
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
@@ -178,6 +179,49 @@ def record_historical_playback_stop(params):
 			profile=profile)
 	except Exception as e:
 		logger('record_historical_playback_stop', severity='medium', error_message=str(e))
+
+class PlaybackHistoryWorker:
+	def __init__(self, start_params, interval=30):
+		self._condition = Condition()
+		self._interval = interval
+		self._latest_params = None
+		self._closing = False
+		self._thread = Thread(target=self._run, args=(start_params,))
+		self._thread.start()
+
+	def update(self, params):
+		with self._condition:
+			if self._closing: return
+			self._latest_params = params
+			self._condition.notify()
+
+	def close(self, params=None):
+		with self._condition:
+			if self._closing: return
+			if params is not None: self._latest_params = params
+			self._closing = True
+			self._condition.notify()
+
+	def join(self, timeout=None):
+		self._thread.join(timeout)
+
+	def _run(self, start_params):
+		record_historical_playback_start(start_params)
+		next_flush = monotonic() + self._interval
+		while True:
+			with self._condition:
+				while not self._closing and (self._latest_params is None or monotonic() < next_flush):
+					timeout = next_flush - monotonic() if self._latest_params is not None else None
+					self._condition.wait(timeout)
+				if self._closing:
+					params = self._latest_params
+					self._latest_params = None
+					if params is None: return
+				else:
+					params = self._latest_params
+					self._latest_params = None
+			record_historical_playback_stop(params)
+			next_flush = monotonic() + self._interval
 
 def refresh_container(refresh=True):
 	if refresh: kodi_refresh()

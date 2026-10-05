@@ -40,6 +40,8 @@ def get_personal_lists(params):
 				cm = [('[B]Make New List[/B]', 'RunPlugin(%s)' % build_url({'mode': 'personal_lists.make_new_personal_list'})),
 				('[B]Edit Properties[/B]', 'RunPlugin(%s)' % build_url({'mode': 'personal_lists.adjust_personal_list_properties',
 					'original_list_name': list_name, 'original_sort_order': sort_order, 'custom_poster': custom_poster, 'custom_fanart': custom_fanart})),
+				('[B]Add List to Queue[/B]', 'RunPlugin(%s)' % build_url({'mode': 'queue.add_list', 'source': 'personal',
+					'list_name': list_name, 'sort_order': sort_order})),
 				('[B]Delete[/B]', 'RunPlugin(%s)' % build_url({'mode': 'personal_lists.delete_personal_list', 'list_name': list_name}))]
 				listitem = kodi_utils.make_listitem()
 				listitem.setLabel('%s (x%02d)' % (list_name, list_total))

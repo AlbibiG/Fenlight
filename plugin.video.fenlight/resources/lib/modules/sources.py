@@ -669,6 +669,11 @@ class Sources():
 		self._make_resolve_dialog()
 		return True
 
+	def next_up_title(self):
+		if self.media_type == 'episode':
+			return '%s S%02dE%02d' % (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode'))
+		return self.meta.get('title', '')
+
 	def autoplay_nextep_handler(self):
 		if not self.nextep_settings: return False
 		player = kodi_utils.kodi_player()
@@ -687,8 +692,7 @@ class Sources():
 				except: pass
 			if continue_nextep:
 				if use_window: action = self._make_nextep_dialog(default_action=default_action)
-				else: kodi_utils.notification('[B]Next Up:[/B] %s S%02dE%02d' \
-						% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
+				else: kodi_utils.notification('[B]Next Up:[/B] %s' % self.next_up_title(), 6500, self.meta.get('poster'))
 				if not action: action = default_action
 				if action == 'cancel': return False
 				elif action == 'pause':
@@ -714,8 +718,8 @@ class Sources():
 			else:
 				current_session_id = kodi_utils.get_property('fenlight.playback_session_id')
 				if current_session_id and current_session_id != playback_session_id: return
-				kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
-						% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
+				ready_label = 'Next Episode Ready' if self.media_type == 'episode' else 'Next Item Ready'
+				kodi_utils.notification('[B]%s:[/B] %s' % (ready_label, self.next_up_title()), 6500, self.meta.get('poster'))
 				while player.isPlayingVideo():
 					current_session_id = kodi_utils.get_property('fenlight.playback_session_id')
 					if current_session_id and current_session_id != playback_session_id: return

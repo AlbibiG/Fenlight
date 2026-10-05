@@ -15,6 +15,11 @@ downloads/
 eggs/
 .eggs/
 lib/
+!plugin.video.fenlight/resources/lib/
+plugin.video.fenlight/resources/lib/*
+!plugin.video.fenlight/resources/lib/modules/
+plugin.video.fenlight/resources/lib/modules/*
+!plugin.video.fenlight/resources/lib/modules/playback_queue.py
 lib64/
 parts/
 sdist/

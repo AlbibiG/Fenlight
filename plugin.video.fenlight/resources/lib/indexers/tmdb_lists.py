@@ -56,6 +56,7 @@ def get_tmdb_lists(params):
 
 
 			('[B]Delete[/B]', 'RunPlugin(%s)' % build_url({'mode': 'tmdblist.delete_tmdb_list', 'list_id': list_id})),
+			('[B]Add List to Queue[/B]', 'RunPlugin(%s)' % build_url({'mode': 'queue.add_list', 'source': 'tmdb', 'list_id': list_id})),
 			('[B]Empty Contents[/B]', 'RunPlugin(%s)' % build_url({'mode': 'tmdblist.clear_tmdb_list', 'list_id': list_id, 'list_name': list_name})),
 			('[B]Import Trakt List[/B]', 'RunPlugin(%s)' % build_url({'mode': 'tmdblist.import_trakt_list_tmdb', 'list_id': list_id, 'list_name': list_name})),
 			('[B]Clear Contents Cache[/B]', 'RunPlugin(%s)' % build_url({'mode': 'tmdblist.cache_delete_list_tmdb', 'list_id': list_id})),
@@ -374,4 +375,3 @@ def process_add_to_list(list_id, new_contents):
 
 def list_change_warning(list_name, text='[B]CAUTION!!![/B][CR][CR]This will change the contents of [B]%s[/B]. Continue?'):
 	return kodi_utils.confirm_dialog(heading='Personal Lists', text=text % list_name, ok_label='Yes', cancel_label='No')
-

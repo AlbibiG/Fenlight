@@ -34,6 +34,13 @@ def routing(sys):
 			elif mode == 'playback.video':
 				from modules.player import FenLightPlayer
 				FenLightPlayer().run(_get('url', None), _get('obj', None))
+		elif 'queue.' in mode:
+			from modules import playback_queue
+			queue_actions = {'add': playback_queue.add, 'add_list': playback_queue.add_list, 'remove': playback_queue.remove,
+							'clear': playback_queue.clear, 'move': playback_queue.move, 'open': playback_queue.open}
+			action = mode.split('.')[1]
+			if action in ('clear', 'open'): queue_actions[action]()
+			else: queue_actions[action](params)
 		elif 'choice' in mode:
 			from indexers import dialogs
 			exec('dialogs.%s(params)' % mode)

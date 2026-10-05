@@ -368,8 +368,10 @@ def update_action():
 	return int(get_setting('fenlight.update.action', '2'))
 
 def cm_sort_order():
-	try: return {i: c for c, i in enumerate(get_setting('fenlight.context_menu.order').split(','))}
-	except: return {i: c for c, i in enumerate(default_setting_values('context_menu.order')['setting_default'].split(','))}
+	try: order = {i: c for c, i in enumerate(get_setting('fenlight.context_menu.order').split(','))}
+	except: order = {i: c for c, i in enumerate(default_setting_values('context_menu.order')['setting_default'].split(','))}
+	order.setdefault('queue', len(order))
+	return order
 
 def rpdb_api_key(media_type):
 	if int(get_setting('fenlight.rpdb_enabled', '0')) not in {'movie': (1, 3), 'tvshow': (2, 3)}[media_type]: return None

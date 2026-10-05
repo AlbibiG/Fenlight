@@ -46,6 +46,8 @@ def build_season_list(params):
 				options_params = build_url({'mode': 'options_menu_choice', 'content': 'season', 'tmdb_id': tmdb_id, 'poster': show_poster, 'is_external': is_external})
 				cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
 				cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
+				queue_params = build_url({'mode': 'queue.add', 'media_type': 'season', 'tmdb_id': tmdb_id, 'season': season_number})
+				cm_append(['queue', ('[B]Add Season to Queue[/B]', 'RunPlugin(%s)' % queue_params)])
 				if playcount:
 					if hide_watched: continue
 				elif not unaired and not season_special:

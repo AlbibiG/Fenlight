@@ -79,6 +79,7 @@ class FenLightPlayer(xbmc.Player):
         history_worker, media_started = None, None
         try:
             ensure_dialog_dead, total_check_time = False, 0
+            from modules import playback_queue
             if self.media_type == 'episode':
                 play_random_continual = self.sources_object.random_continual
                 play_random = self.sources_object.random
@@ -87,6 +88,10 @@ class FenLightPlayer(xbmc.Player):
                 if any((play_random_continual, play_random, disable_autoplay_next_episode)): self.autoplay_nextep, self.autoscrape_nextep = False, False
                 else: self.autoplay_nextep, self.autoscrape_nextep = self.sources_object.autoplay_nextep, self.sources_object.autoscrape_nextep
             else: play_random_continual, self.autoplay_nextep, self.autoscrape_nextep = False, False, False
+            self.default_autoplay_nextep, self.default_autoscrape_nextep = self.autoplay_nextep, self.autoscrape_nextep
+            self.queue_mode_override = False
+            if playback_queue.has_items() and not any((self.autoplay_nextep, self.autoscrape_nextep)):
+                self.autoscrape_nextep, self.queue_mode_override = True, True
             while total_check_time <= 30 and not ku.get_visibility('Window.IsActive(fullscreenvideo)'):
                 ku.sleep(100)
                 total_check_time += 0.10
@@ -111,8 +116,15 @@ class FenLightPlayer(xbmc.Player):
                     if history_worker:
                         params = self.create_params({'started': media_started})
                         history_worker.update(params)
+                    queue_has_items = playback_queue.has_items()
+                    if queue_has_items and not any((self.autoplay_nextep, self.autoscrape_nextep)):
+                        self.autoscrape_nextep, self.queue_mode_override = True, True
+                        self.nextep_info_gathered = False
+                    elif not queue_has_items and self.queue_mode_override:
+                        self.autoplay_nextep, self.autoscrape_nextep = self.default_autoplay_nextep, self.default_autoscrape_nextep
+                        self.queue_mode_override, self.nextep_info_gathered = False, False
                     if self.current_point >= 90:
-                        if play_random_continual: self.run_random_continual(); break
+                        if play_random_continual and not queue_has_items: self.run_random_continual(); break
                         if not self.media_marked: self.media_watched_marker()
                     if self.autoplay_nextep or self.autoscrape_nextep:
                         if not self.nextep_info_gathered: self.info_next_ep()
@@ -202,6 +214,18 @@ class FenLightPlayer(xbmc.Player):
         except: pass
 
     def run_next_ep(self):
+        from modules import playback_queue
+        queue_item = playback_queue.peek()
+        if queue_item:
+            if not self.media_marked: self.media_watched_marker(force_watched=True)
+            play_type = self.nextep_settings['play_type']
+            params = dict(queue_item['params'], background='true', play_type=play_type,
+                        nextep_settings=self.nextep_settings, queue_id=queue_item['queue_id'])
+            if play_type == 'autoscrape_nextep': params['prescrape'] = 'false'
+            from modules.sources import Sources
+            Sources().playback_prep(params)
+            return
+        if not any((self.default_autoplay_nextep, self.default_autoscrape_nextep)): return
         from modules.episode_tools import EpisodeTools
         if not self.media_marked: self.media_watched_marker(force_watched=True)
         EpisodeTools(self.meta, self.nextep_settings).auto_nextep()
@@ -245,6 +269,10 @@ class FenLightPlayer(xbmc.Player):
         ku.set_property('fenlight.playback_session_id', self.playback_session_id)
         self.is_generic = self.sources_object == 'video'
         if not self.is_generic:
+            queue_id = self.sources_object.params.get('queue_id')
+            if queue_id:
+                from modules.playback_queue import mark_started
+                mark_started(queue_id)
             self.meta = self.sources_object.meta
             self.meta_get, self.kodi_monitor, self.playback_percent = self.meta.get, ku.kodi_monitor(), self.sources_object.playback_percent or 0.0
             self.playing_filename = self.sources_object.playing_filename

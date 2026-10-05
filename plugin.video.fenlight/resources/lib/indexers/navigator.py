@@ -119,6 +119,7 @@ class Navigator:
 		self.end_directory()
 
 	def my_content(self):
+		self.add({'mode': 'queue.open'}, 'Playback Queue', 'player')
 		if s.trakt_user_active(): self.add({'mode': 'navigator.trakt_lists_personal'}, 'Trakt Lists', 'trakt')
 		if s.trakt_user_active(): self.add({'mode': 'navigator.trakt_lists_public'}, 'Trakt Public Lists', 'trakt')
 		if s.tmdblist_user_active(): self.add({'mode': 'tmdblist.get_tmdb_lists'}, 'TMDb Lists', 'tmdb')

@@ -31,6 +31,8 @@ def search_trakt_lists(params):
 				url = kodi_utils.build_url({'mode': 'trakt.list.build_trakt_list', 'user': user, 'slug': slug, 'list_type': 'user_lists', 'list_name': list_name})
 				cm_append(('[B]Like List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.trakt_like_a_list', 'user': user, 'list_slug': slug})))
 				cm_append(('[B]Unlike List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.trakt_unlike_a_list', 'user': user, 'list_slug': slug})))
+				cm_append(('[B]Add List to Queue[/B]', 'RunPlugin(%s)' % kodi_utils.build_url(
+					{'mode': 'queue.add_list', 'source': 'trakt', 'user': user, 'slug': slug, 'list_type': 'user_lists'})))
 				listitem = kodi_utils.make_listitem()
 				listitem.setLabel(display)
 				listitem.setArt({'icon': trakt_icon, 'poster': trakt_icon, 'thumb': trakt_icon, 'fanart': fanart, 'banner': fanart})
@@ -77,6 +79,8 @@ def get_trakt_lists(params):
 					display = '%s [I](x%s)[/I]' % (list_name_upper, str(item_count))
 					cm_append(('[B]Make New List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.make_new_trakt_list'})))
 					cm_append(('[B]Delete List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.delete_trakt_list', 'user': user, 'list_slug': slug})))
+				cm_append(('[B]Add List to Queue[/B]', 'RunPlugin(%s)' % kodi_utils.build_url(
+					{'mode': 'queue.add_list', 'source': 'trakt', 'user': user, 'slug': slug, 'list_type': list_type})))
 				listitem = kodi_utils.make_listitem()
 				listitem.setLabel(display)
 				listitem.setArt({'icon': trakt_icon, 'poster': trakt_icon, 'thumb': trakt_icon, 'fanart': fanart, 'banner': fanart})
@@ -136,6 +140,8 @@ def get_trakt_user_lists(params):
 				if not user == 'Trakt Official':
 					cm_append(('[B]Like List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.trakt_like_a_list', 'user': user, 'list_slug': slug})))
 					cm_append(('[B]Unlike List[/B]', 'RunPlugin(%s)' % kodi_utils.build_url({'mode': 'trakt.trakt_unlike_a_list', 'user': user, 'list_slug': slug})))
+				cm_append(('[B]Add List to Queue[/B]', 'RunPlugin(%s)' % kodi_utils.build_url(
+					{'mode': 'queue.add_list', 'source': 'trakt', 'user': user, 'slug': slug, 'list_type': 'user_lists'})))
 				listitem.addContextMenuItems(cm)
 				listitem.setLabel(display)
 				listitem.setArt({'icon': trakt_icon, 'poster': trakt_icon, 'thumb': trakt_icon, 'fanart': fanart, 'banner': fanart})

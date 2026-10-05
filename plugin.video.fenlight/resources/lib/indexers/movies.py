@@ -162,6 +162,8 @@ class Movies:
 			else: url_params = play_params
 			cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 			cm_append(['playback_options', ('[B]Playback Options[/B]', 'RunPlugin(%s)' % playback_options_params)])
+			queue_params = self.build_url({'mode': 'queue.add', 'media_type': 'movie', 'tmdb_id': tmdb_id, 'title': title})
+			cm_append(['queue', ('[B]Add to Queue[/B]', 'RunPlugin(%s)' % queue_params)])
 			if belongs_to_movieset == 'true' and not self.movieset_list_active and not self.open_movieset:
 				browse_movie_set_params = self.build_url({'mode': 'build_movie_list', 'action': 'tmdb_movies_sets', 'key_id': movieset_id,
 											'name': movieset_name, 'is_external': self.is_external})

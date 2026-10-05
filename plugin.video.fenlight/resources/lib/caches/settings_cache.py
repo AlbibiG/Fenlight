@@ -274,7 +274,7 @@ def default_settings():
 #==================== Context Menu
 {'setting_id': 'context_menu.order', 'setting_type': 'string',
 'setting_default': 'extras,options,playback_options,browse_set_season,recommended,more_like_this,in_trakt_list,trakt_manager,personal_manager,tmdb_manager,' \
-'favorites_manager,mark_watched,exit,refresh,reload'},
+'favorites_manager,queue,mark_watched,exit,refresh,reload'},
 #==================== General
 {'setting_id': 'paginate.lists', 'setting_type': 'action', 'setting_default': '0', 'settings_options': {'0': 'Off', '1': 'Within Addon Only', '2': 'Widgets Only', '3': 'Both'}},
 {'setting_id': 'paginate.limit_addon', 'setting_type': 'action', 'setting_default': '20'},

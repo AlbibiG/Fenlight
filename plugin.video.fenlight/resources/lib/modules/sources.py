@@ -708,12 +708,20 @@ class Sources():
 	def autoscrape_nextep_handler(self):
 		player = kodi_utils.kodi_player()
 		if player.isPlayingVideo():
+			playback_session_id = kodi_utils.get_property('fenlight.playback_session_id')
 			results = self.get_sources()
 			if not results: return kodi_utils.notification(33092, 3000)
 			else:
+				current_session_id = kodi_utils.get_property('fenlight.playback_session_id')
+				if current_session_id and current_session_id != playback_session_id: return
 				kodi_utils.notification('[B]Next Episode Ready:[/B] %s S%02dE%02d' \
 						% (self.meta.get('title'), self.meta.get('season'), self.meta.get('episode')), 6500, self.meta.get('poster'))
-				while player.isPlayingVideo(): kodi_utils.sleep(100)
+				while player.isPlayingVideo():
+					current_session_id = kodi_utils.get_property('fenlight.playback_session_id')
+					if current_session_id and current_session_id != playback_session_id: return
+					kodi_utils.sleep(100)
+				current_session_id = kodi_utils.get_property('fenlight.playback_session_id')
+				if current_session_id and current_session_id != playback_session_id: return
 			self.display_results(results)
 		else: return
 

@@ -1,6 +1,7 @@
 import xbmc
 import json
 from threading import Thread
+from uuid import uuid4
 from apis.trakt_api import make_trakt_slug
 from modules import kodi_utils as ku, settings as st, watched_status as ws
 from modules.utils import get_datetime
@@ -10,8 +11,9 @@ class FenLightPlayer(xbmc.Player):
         xbmc.Player.__init__(self)
 
     def run(self, url=None, obj=None):
+        self.playback_session_id = uuid4().hex
         ku.hide_busy_dialog()
-        self.clear_playback_properties()
+        self.clear_playback_properties(force=True)
         if not url: return self.run_error()
         try: return self.play_video(url, obj)
         except: return self.run_error()
@@ -97,7 +99,7 @@ class FenLightPlayer(xbmc.Player):
             ku.hide_busy_dialog()
             ku.sleep(1000)
 
-            while self.isPlayingVideo():
+            while self.isPlayingVideo() and self._owns_playback_session():
                 try:
                     try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
                     except: ku.sleep(250); continue
@@ -240,6 +242,7 @@ class FenLightPlayer(xbmc.Player):
     def set_constants(self, url, obj):
         self.url = url
         self.sources_object = obj
+        ku.set_property('fenlight.playback_session_id', self.playback_session_id)
         self.is_generic = self.sources_object == 'video'
         if not self.is_generic:
             self.meta = self.sources_object.meta
@@ -257,10 +260,15 @@ class FenLightPlayer(xbmc.Player):
             if self.playing_filename: ku.set_property('subs.player_filename', self.playing_filename)
         except: pass
 
-    def clear_playback_properties(self):
+    def _owns_playback_session(self):
+        return ku.get_property('fenlight.playback_session_id') == self.playback_session_id
+
+    def clear_playback_properties(self, force=False):
+        if not force and not self._owns_playback_session(): return
         ku.clear_property('fenlight.window_stack')
         ku.clear_property('script.trakt.ids')
         ku.clear_property('subs.player_filename')
+        ku.clear_property('fenlight.playback_session_id')
 
     def clear_playing_item(self):
         if self.playing_item['cache_provider'] == 'Offcloud':

@@ -37,7 +37,7 @@ def routing(sys):
 		elif 'queue.' in mode:
 			from modules import playback_queue
 			queue_actions = {'add': playback_queue.add, 'add_list': playback_queue.add_list, 'remove': playback_queue.remove,
-							'remove_item': playback_queue.remove_item, 'toggle': playback_queue.toggle,
+							'remove_item': playback_queue.remove_item,
 							'clear': playback_queue.clear, 'move': playback_queue.move, 'open': playback_queue.open}
 			action = mode.split('.')[1]
 			if action in ('clear', 'open'): queue_actions[action]()

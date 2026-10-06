@@ -75,6 +75,7 @@ def remove_item(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
+	kodi_utils.refresh_widgets()
 
 
 def _entry(media_type, tmdb_id, title, season=None, episode=None, ep_title=None):
@@ -187,6 +188,7 @@ def add(params):
 	queue.extend(entries)
 	_save_queue(queue)
 	kodi_utils.notification('Added %d Item%s to Queue' % (len(entries), '' if len(entries) == 1 else 's'), 3000)
+	kodi_utils.refresh_widgets()
 
 
 def add_list(params):
@@ -226,6 +228,7 @@ def remove(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
+	kodi_utils.refresh_widgets()
 
 
 def clear():
@@ -233,6 +236,7 @@ def clear():
 	if not kodi_utils.confirm_dialog(heading='Playback Queue', text='Clear the entire queue?'): return
 	_save_queue([])
 	kodi_utils.notification('Queue Cleared', 2000)
+	kodi_utils.refresh_widgets()
 
 
 def move(params):
@@ -244,6 +248,7 @@ def move(params):
 	if not 0 <= new_index < len(queue): return
 	queue[index], queue[new_index] = queue[new_index], queue[index]
 	_save_queue(queue)
+	kodi_utils.refresh_widgets()
 
 
 def _item_art(params, cache):

@@ -297,8 +297,7 @@ def open():
 		items.append((clear_url, clear_item, False))
 	for index, item in enumerate(queue):
 		queue_id = item['queue_id']
-		label = item.get('label', 'Queued Item')
-		if index == 0: label = '[B][FF0000][UP NEXT][/FF0000][/B] %s' % label
+		label = '%d. %s' % (index + 1, item.get('label', 'Queued Item'))
 		listitem = make_listitem()
 		listitem.setLabel(label)
 		listitem.setArt(_item_art(item['params'], art_cache))

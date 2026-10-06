@@ -50,23 +50,24 @@ def _matches_item(queue_item, media_type, tmdb_id, season=None, episode=None):
 	return True
 
 
+def _is_queued(media_type, tmdb_id, season=None, episode=None):
+	return any(_matches_item(item, media_type, tmdb_id, season, episode) for item in get_queue())
+
+
 def context_menu_action(media_type, tmdb_id, title=None, season=None, episode=None, ep_title=None):
-	queue = get_queue()
-	queued = any(_matches_item(item, media_type, tmdb_id, season, episode) for item in queue)
-	if queued:
-		params = {'mode': 'queue.remove_item', 'media_type': media_type, 'tmdb_id': tmdb_id}
-		if season is not None: params['season'] = season
-		if episode is not None: params['episode'] = episode
-		label = '[B]Remove from Queue[/B]'
-	else:
-		params = {'mode': 'queue.add', 'media_type': media_type, 'tmdb_id': tmdb_id}
-		if title is not None: params['title'] = title
-		if season is not None: params['season'] = season
-		if episode is not None: params['episode'] = episode
-		if ep_title is not None: params['ep_title'] = ep_title
-		label = '[B]Add to Queue[/B]'
+	# The action decides add/remove when clicked, because the menu is built with the list and can be stale.
+	params = {'mode': 'queue.toggle', 'media_type': media_type, 'tmdb_id': tmdb_id}
+	if title is not None: params['title'] = title
+	if season is not None: params['season'] = season
+	if episode is not None: params['episode'] = episode
+	if ep_title is not None: params['ep_title'] = ep_title
+	label = '[B]Remove from Queue[/B]' if _is_queued(media_type, tmdb_id, season, episode) else '[B]Add to Queue[/B]'
 	return label, 'RunPlugin(%s)' % kodi_utils.build_url(params)
 
+
+def toggle(params):
+	if _is_queued(params.get('media_type'), params.get('tmdb_id'), params.get('season'), params.get('episode')): remove_item(params)
+	else: add(params)
 
 def remove_item(params):
 	media_type, tmdb_id = params.get('media_type'), params.get('tmdb_id')

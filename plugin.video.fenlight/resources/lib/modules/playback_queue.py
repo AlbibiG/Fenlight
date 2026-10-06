@@ -38,7 +38,7 @@ def mark_started(queue_id):
 	updated_queue = [item for item in queue if item.get('queue_id') != queue_id]
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
-	kodi_utils.notification('Removed from Queue', 2000)
+	#kodi_utils.notification('Removed from Queue', 2000)
 
 
 def _matches_item(queue_item, media_type, tmdb_id, season=None, episode=None):
@@ -77,7 +77,7 @@ def remove_item(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
-	kodi_utils.container_refresh()
+	kodi_utils.kodi_refresh()
 
 
 def _entry(media_type, tmdb_id, title, season=None, episode=None, ep_title=None):
@@ -190,7 +190,7 @@ def add(params):
 	queue.extend(entries)
 	_save_queue(queue)
 	kodi_utils.notification('Added %d Item%s to Queue' % (len(entries), '' if len(entries) == 1 else 's'), 3000)
-	kodi_utils.container_refresh()
+	kodi_utils.kodi_refresh()
 
 
 def add_list(params):
@@ -230,7 +230,7 @@ def remove(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
-	kodi_utils.container_refresh()
+	kodi_utils.kodi_refresh()
 
 
 def clear():
@@ -238,7 +238,7 @@ def clear():
 	if not kodi_utils.confirm_dialog(heading='Playback Queue', text='Clear the entire queue?'): return
 	_save_queue([])
 	kodi_utils.notification('Queue Cleared', 2000)
-	kodi_utils.container_refresh()
+	kodi_utils.kodi_refresh()
 
 
 def move(params):
@@ -250,7 +250,38 @@ def move(params):
 	if not 0 <= new_index < len(queue): return
 	queue[index], queue[new_index] = queue[new_index], queue[index]
 	_save_queue(queue)
-	kodi_utils.container_refresh()
+	kodi_utils.kodi_refresh()
+
+
+def _item_art(params, cache):
+	default_art = kodi_utils.get_icon('player')
+	fanart = kodi_utils.get_addon_fanart()
+	art = {'icon': default_art, 'poster': default_art, 'thumb': default_art, 'fanart': fanart}
+	try:
+		tmdb_id, media_type = params.get('tmdb_id'), params.get('media_type')
+		meta_key = (media_type == 'movie', tmdb_id)
+		if meta_key not in cache:
+			if media_type == 'movie':
+				cache[meta_key] = metadata.movie_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
+			else: cache[meta_key] = _tvshow_meta(tmdb_id)
+		meta = cache[meta_key]
+		if not meta or meta.get('blank_entry'): return art
+		art['fanart'] = meta.get('fanart') or fanart
+		if media_type == 'movie':
+			image = meta.get('poster') or meta.get('landscape') or meta.get('fanart')
+		else:
+			image = None
+			episodes_key = ('episodes', tmdb_id, str(params.get('season')))
+			if episodes_key not in cache: cache[episodes_key] = metadata.episodes_meta(int(params.get('season')), meta)
+			for episode_data in cache[episodes_key] or []:
+				if str(episode_data.get('episode')) == str(params.get('episode')):
+					image = episode_data.get('thumb')
+					break
+			image = image or meta.get('landscape') or meta.get('fanart')
+		if image: art.update({'icon': image, 'poster': image, 'thumb': image})
+	except Exception as e:
+		kodi_utils.logger('playback_queue._item_art', severity='low', error_message=str(e))
+	return art
 
 
 def open():
@@ -258,6 +289,7 @@ def open():
 	queue = get_queue()
 	build_url, make_listitem = kodi_utils.build_url, kodi_utils.make_listitem
 	items = []
+	art_cache = {}
 	clear_url = build_url({'mode': 'queue.clear'})
 	clear_item = make_listitem()
 	clear_item.setLabel('[B]Clear Queue[/B]')
@@ -267,11 +299,10 @@ def open():
 	for index, item in enumerate(queue):
 		queue_id = item['queue_id']
 		label = item.get('label', 'Queued Item')
-		if index == 0: label = '[B][UP NEXT][/B] %s' % label
+		if index == 0: label = '[B][FF0000][UP NEXT][/FF0000][/B] %s' % label
 		listitem = make_listitem()
 		listitem.setLabel(label)
-		listitem.setArt({'icon': kodi_utils.get_icon('player'), 'poster': kodi_utils.get_icon('player'),
-						'thumb': kodi_utils.get_icon('player'), 'fanart': kodi_utils.get_addon_fanart()})
+		listitem.setArt(_item_art(item['params'], art_cache))
 		actions = [
 			('[B]Remove from Queue[/B]', 'RunPlugin(%s)' % build_url({'mode': 'queue.remove', 'queue_id': queue_id})),
 			('[B]Move Up[/B]', 'RunPlugin(%s)' % build_url({'mode': 'queue.move', 'queue_id': queue_id, 'direction': 'up'})),

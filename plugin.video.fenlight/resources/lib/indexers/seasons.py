@@ -89,7 +89,12 @@ def build_season_list(params):
 	current_date = get_datetime()
 	cm_sort_order = settings.cm_sort_order()
 	rpdb_api_key = settings.rpdb_api_key('tvshow')
-	watched_title = 'Trakt' if watched_indicators == 1 else 'Fen Light'
+	if watched_indicators == 1:
+		watched_title = 'Trakt' 
+	elif watched_indicators == 0:
+		watched_title = 'Fen Light'
+	else:
+		watched_title = 'MariaDB'
 	meta = tvshow_meta('tmdb_id', params['tmdb_id'], settings.tmdb_api_key(), settings.mpaa_region(), current_date)
 	meta_get = meta.get
 	tmdb_id, tvdb_id, imdb_id, show_title, show_year = meta_get('tmdb_id'), meta_get('tvdb_id'), meta_get('imdb_id'), meta_get('title'), meta_get('year') or '2050'

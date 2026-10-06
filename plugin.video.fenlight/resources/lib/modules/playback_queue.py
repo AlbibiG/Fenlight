@@ -190,6 +190,7 @@ def add(params):
 	queue.extend(entries)
 	_save_queue(queue)
 	kodi_utils.notification('Added %d Item%s to Queue' % (len(entries), '' if len(entries) == 1 else 's'), 3000)
+	kodi_utils.container_refresh()
 
 
 def add_list(params):
@@ -261,7 +262,8 @@ def open():
 	clear_item = make_listitem()
 	clear_item.setLabel('[B]Clear Queue[/B]')
 	clear_item.addContextMenuItems([('[B]Clear Queue[/B]', 'RunPlugin(%s)' % clear_url)])
-	items.append(('', clear_item, False))
+	clear_item.setProperty('IsPlayable', 'false')
+	items.append((clear_url, clear_item, False))
 	for index, item in enumerate(queue):
 		queue_id = item['queue_id']
 		label = item.get('label', 'Queued Item')
@@ -282,7 +284,8 @@ def open():
 	if not queue:
 		empty = make_listitem()
 		empty.setLabel('Queue is empty')
-		items.append(('', empty, False))
+		empty.setProperty('IsPlayable', 'false')
+		items.append((clear_url, empty, False))
 	kodi_utils.add_items(handle, items)
 	kodi_utils.set_content(handle, 'videos')
 	kodi_utils.set_category(handle, 'Playback Queue')

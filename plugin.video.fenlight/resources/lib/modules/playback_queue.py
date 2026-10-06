@@ -37,7 +37,6 @@ def mark_started(queue_id):
 	updated_queue = [item for item in queue if item.get('queue_id') != queue_id]
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
-	#kodi_utils.notification('Removed from Queue', 2000)
 
 
 def _matches_item(queue_item, media_type, tmdb_id, season=None, episode=None):
@@ -188,7 +187,6 @@ def add(params):
 	queue.extend(entries)
 	_save_queue(queue)
 	kodi_utils.notification('Added %d Item%s to Queue' % (len(entries), '' if len(entries) == 1 else 's'), 3000)
-	
 
 
 def add_list(params):
@@ -228,7 +226,6 @@ def remove(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
-	
 
 
 def clear():
@@ -236,7 +233,6 @@ def clear():
 	if not kodi_utils.confirm_dialog(heading='Playback Queue', text='Clear the entire queue?'): return
 	_save_queue([])
 	kodi_utils.notification('Queue Cleared', 2000)
-	
 
 
 def move(params):
@@ -248,7 +244,6 @@ def move(params):
 	if not 0 <= new_index < len(queue): return
 	queue[index], queue[new_index] = queue[new_index], queue[index]
 	_save_queue(queue)
-	
 
 
 def _item_art(params, cache):
@@ -289,11 +284,12 @@ def open():
 	items = []
 	art_cache = {}
 	clear_url = build_url({'mode': 'queue.clear'})
-	clear_item = make_listitem()
-	clear_item.setLabel('[B]Clear Queue[/B]')
-	clear_item.addContextMenuItems([('[B]Clear Queue[/B]', 'RunPlugin(%s)' % clear_url)])
-	clear_item.setProperty('IsPlayable', 'false')
-	items.append((clear_url, clear_item, False))
+	if queue:
+		clear_item = make_listitem()
+		clear_item.setLabel('[B]Clear Queue[/B]')
+		clear_item.addContextMenuItems([('[B]Clear Queue[/B]', 'RunPlugin(%s)' % clear_url)])
+		clear_item.setProperty('IsPlayable', 'false')
+		items.append((clear_url, clear_item, False))
 	for index, item in enumerate(queue):
 		queue_id = item['queue_id']
 		label = item.get('label', 'Queued Item')

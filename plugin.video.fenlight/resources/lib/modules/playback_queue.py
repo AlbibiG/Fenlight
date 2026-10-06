@@ -41,6 +41,45 @@ def mark_started(queue_id):
 	kodi_utils.notification('Removed from Queue', 2000)
 
 
+def _matches_item(queue_item, media_type, tmdb_id, season=None, episode=None):
+	params = queue_item.get('params', {})
+	if str(params.get('tmdb_id')) != str(tmdb_id): return False
+	if media_type == 'movie': return params.get('media_type') == 'movie'
+	if params.get('media_type') != 'episode': return False
+	if season is not None and str(params.get('season')) != str(season): return False
+	if episode is not None and str(params.get('episode')) != str(episode): return False
+	return True
+
+
+def context_menu_action(media_type, tmdb_id, title=None, season=None, episode=None, ep_title=None):
+	queue = get_queue()
+	queued = any(_matches_item(item, media_type, tmdb_id, season, episode) for item in queue)
+	if queued:
+		params = {'mode': 'queue.remove_item', 'media_type': media_type, 'tmdb_id': tmdb_id}
+		if season is not None: params['season'] = season
+		if episode is not None: params['episode'] = episode
+		label = '[B]Remove from Queue[/B]'
+	else:
+		params = {'mode': 'queue.add', 'media_type': media_type, 'tmdb_id': tmdb_id}
+		if title is not None: params['title'] = title
+		if season is not None: params['season'] = season
+		if episode is not None: params['episode'] = episode
+		if ep_title is not None: params['ep_title'] = ep_title
+		label = '[B]Add to Queue[/B]'
+	return label, 'RunPlugin(%s)' % kodi_utils.build_url(params)
+
+
+def remove_item(params):
+	media_type, tmdb_id = params.get('media_type'), params.get('tmdb_id')
+	season, episode = params.get('season'), params.get('episode')
+	queue = get_queue()
+	updated_queue = [item for item in queue if not _matches_item(item, media_type, tmdb_id, season, episode)]
+	if len(updated_queue) == len(queue): return
+	_save_queue(updated_queue)
+	kodi_utils.notification('Removed from Queue', 2000)
+	kodi_utils.container_refresh()
+
+
 def _entry(media_type, tmdb_id, title, season=None, episode=None, ep_title=None):
 	if media_type == 'movie':
 		label = title

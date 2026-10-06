@@ -168,8 +168,10 @@ class TVShows:
 				url_params = extras_params
 			else: cm_append(['extras', ('[B]Extras[/B]', 'RunPlugin(%s)' % extras_params)])
 			cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
-			queue_params = self.build_url({'mode': 'queue.add', 'media_type': 'tvshow', 'tmdb_id': tmdb_id})
-			cm_append(['queue', ('[B]Add Episodes to Queue[/B]', 'RunPlugin(%s)' % queue_params)])
+			from modules.playback_queue import context_menu_action
+			queue_action = context_menu_action('tvshow', tmdb_id)
+			if queue_action[0] == '[B]Add to Queue[/B]': queue_action = ('[B]Add Episodes to Queue[/B]', queue_action[1])
+			cm_append(['queue', queue_action])
 			if tmdb_id and settings.recommended_service() == 0: cm_append(['recommended', ('[B]Browse Recommended[/B]', self.window_command % browse_recommended_params)])
 			if imdb_id and settings.recommended_service() == 1: cm_append(['more_like_this', ('[B]Browse More Like This[/B]', self.window_command % browse_more_like_this_params)])
 			if imdb_id and settings.trakt_user_active(): cm_append(['in_trakt_list', ('[B]In Trakt Lists[/B]', self.window_command % \

@@ -40,9 +40,8 @@ def build_episode_list(params):
 				cm_append(['options', ('[B]Options[/B]', 'RunPlugin(%s)' % options_params)])
 				cm_append(['playback_options', ('[B]Playback Options[/B]', 'RunPlugin(%s)' % playback_options_params)])
 				if not unaired and not season_special:
-					queue_params = build_url({'mode': 'queue.add', 'media_type': 'episode', 'tmdb_id': tmdb_id, 'season': season,
-											'episode': episode, 'title': title, 'ep_title': ep_name})
-					cm_append(['queue', ('[B]Add to Queue[/B]', 'RunPlugin(%s)' % queue_params)])
+					from modules.playback_queue import context_menu_action
+					cm_append(['queue', context_menu_action('episode', tmdb_id, title=title, season=season, episode=episode, ep_title=ep_name)])
 				if not unaired and not season_special:
 					if playcount:
 						cm_append(['mark_watched', ('[B]Mark Unwatched %s[/B]' % watched_title, 'RunPlugin(%s)' % \
@@ -227,9 +226,8 @@ def build_single_episode(list_type, params={}):
 			cm_append(['playback_options', ('[B]Playback Options[/B]', 'RunPlugin(%s)' % \
 						build_url({'mode': 'playback_choice', 'media_type': 'episode', 'meta': tmdb_id, 'season': season, 'episode': episode, 'episode_id': episode_id}))])
 			if not unaired:
-				queue_params = build_url({'mode': 'queue.add', 'media_type': 'episode', 'tmdb_id': tmdb_id, 'season': season,
-										'episode': episode, 'title': title, 'ep_title': ep_name})
-				cm_append(['queue', ('[B]Add to Queue[/B]', 'RunPlugin(%s)' % queue_params)])
+				from modules.playback_queue import context_menu_action
+				cm_append(['queue', context_menu_action('episode', tmdb_id, title=title, season=season, episode=episode, ep_title=ep_name)])
 			if not unaired:
 				if playcount:
 					cm_append(['mark_watched', ('[B]Mark Unwatched %s[/B]' % watched_title, 'RunPlugin(%s)' % \

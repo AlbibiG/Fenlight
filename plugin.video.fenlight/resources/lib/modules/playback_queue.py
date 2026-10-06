@@ -9,6 +9,14 @@ from modules.utils import get_datetime
 _QUEUE_PROPERTY = 'fenlight.playback_queue'
 
 
+def _refresh():
+	# Re-requesting the current path bypasses Kodi's cached directory, so context menus are rebuilt.
+	kodi_utils.sleep(200)
+	path = kodi_utils.get_infolabel('Container.FolderPath')
+	if path.startswith('plugin://'): kodi_utils.execute_builtin('Container.Update(%s,replace)' % path)
+	else: kodi_utils.container_refresh()
+
+
 def get_queue():
 	try:
 		queue = json.loads(kodi_utils.get_property(_QUEUE_PROPERTY) or '[]')
@@ -77,7 +85,7 @@ def remove_item(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
-	kodi_utils.kodi_refresh()
+	_refresh()
 
 
 def _entry(media_type, tmdb_id, title, season=None, episode=None, ep_title=None):
@@ -190,7 +198,7 @@ def add(params):
 	queue.extend(entries)
 	_save_queue(queue)
 	kodi_utils.notification('Added %d Item%s to Queue' % (len(entries), '' if len(entries) == 1 else 's'), 3000)
-	kodi_utils.kodi_refresh()
+	_refresh()
 
 
 def add_list(params):
@@ -230,7 +238,7 @@ def remove(params):
 	if len(updated_queue) == len(queue): return
 	_save_queue(updated_queue)
 	kodi_utils.notification('Removed from Queue', 2000)
-	kodi_utils.kodi_refresh()
+	_refresh()
 
 
 def clear():
@@ -238,7 +246,7 @@ def clear():
 	if not kodi_utils.confirm_dialog(heading='Playback Queue', text='Clear the entire queue?'): return
 	_save_queue([])
 	kodi_utils.notification('Queue Cleared', 2000)
-	kodi_utils.kodi_refresh()
+	_refresh()
 
 
 def move(params):
@@ -250,7 +258,7 @@ def move(params):
 	if not 0 <= new_index < len(queue): return
 	queue[index], queue[new_index] = queue[new_index], queue[index]
 	_save_queue(queue)
-	kodi_utils.kodi_refresh()
+	_refresh()
 
 
 def _item_art(params, cache):
@@ -268,7 +276,7 @@ def _item_art(params, cache):
 		if not meta or meta.get('blank_entry'): return art
 		art['fanart'] = meta.get('fanart') or fanart
 		if media_type == 'movie':
-			image = meta.get('poster') or meta.get('landscape') or meta.get('fanart')
+			image = meta.get('landscape') or meta.get('poster') or meta.get('fanart')
 		else:
 			image = None
 			episodes_key = ('episodes', tmdb_id, str(params.get('season')))

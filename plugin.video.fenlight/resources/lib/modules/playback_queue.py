@@ -171,9 +171,27 @@ def add(params):
 	tmdb_id = params.get('tmdb_id')
 	entries = []
 	if media_type == 'movie' and tmdb_id:
-		entries.append(_entry('movie', tmdb_id, params.get('title') or 'Movie'))
+		title = params.get('title')
+		if not title:
+			try:
+				meta = metadata.movie_meta('tmdb_id', tmdb_id, settings.tmdb_api_key(), settings.mpaa_region(), get_datetime())
+				title = meta.get('title') if meta and not meta.get('blank_entry') else None
+			except Exception: title = None
+		entries.append(_entry('movie', tmdb_id, title or 'Movie'))
 	elif media_type == 'episode' and tmdb_id and params.get('season') is not None and params.get('episode') is not None:
-		entries.append(_entry('episode', tmdb_id, params.get('title') or 'TV Show', params['season'], params['episode'], params.get('ep_title')))
+		title, ep_title = params.get('title'), params.get('ep_title')
+		if not title or not ep_title:
+			try:
+				meta = _tvshow_meta(tmdb_id)
+				if meta and not meta.get('blank_entry'):
+					title = title or meta.get('title')
+					if not ep_title:
+						for episode_data in metadata.episodes_meta(int(params['season']), meta):
+							if int(episode_data.get('episode', -1)) == int(params['episode']):
+								ep_title = episode_data.get('title')
+								break
+			except Exception: pass
+		entries.append(_entry('episode', tmdb_id, title or 'TV Show', params['season'], params['episode'], ep_title))
 	elif media_type == 'season' and tmdb_id and params.get('season') is not None:
 		entries.extend(_season_entries(tmdb_id, params['season']))
 	elif media_type == 'tvshow' and tmdb_id:

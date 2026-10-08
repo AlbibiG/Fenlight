@@ -1,3 +1,34 @@
+﻿[COLOR dodgerblue][B]Version 1.1.13[/B][/COLOR]
+- Renamed project to FenlightAG and updated README description.
+
+[COLOR dodgerblue][B]Version 1.1.0 - 1.1.12[/B][/COLOR]
+- [FEATURE] Added a session-only Playback Queue. Queue movies, episodes, seasons, whole shows or entire Trakt/Personal/TMDb lists from the context menu. Items play in order and are removed when playback starts.
+- [FEATURE] Added "Playback Queue" to the main menu. Items are numbered, show poster/still artwork, and can be removed, moved or cleared. "Clear Queue" is hidden when the queue is empty.
+- [FEATURE] Context menu now toggles between "Add to Queue" and "Remove from Queue".
+- [FEATURE] Next episode autoplay now respects the queue.
+- [FEATURE] Added the "script.fenlight.queue" companion add-on so Home Assistant (or any JSON-RPC client) can add/remove queue items via Addons.ExecuteAddon without changing the current window. Titles are fetched from cached metadata if not supplied.
+- [BUG] Fixed Clear Queue and empty queue rows trying to play ("Playback failed").
+- [BUG] Fixed queue actions started via Addons.ExecuteAddon crashing Kodi.
+- [CODE] Added queue module (playback_queue.py) and "queue.*" routes.
+- [CODE] Packages and zips now served from the packages folder via GitHub Pages, with a Kodi-browsable index. Separate zips for the add-on and queue script.
+
+[COLOR dodgerblue][B]Version 1.0.1 - 1.0.5[/B][/COLOR]
+- [BUG] Fixed race condition where autoplay could play the previous show's next episode (per-playback session ID in player and sources).
+- [BUG] Fixed updater version rollback.
+- [CODE] Moved release zips to a packages folder and updated the updater to use it.
+- [CODE] Added GitHub Pages deployment workflow.
+
+[COLOR dodgerblue][B]Version 1.0.0[/B][/COLOR]
+- Initial FenlightAG release, built on Fen Light 2.1.22 (consolidated from versions 0.0.1 - 0.0.161).
+- [FEATURE] Added optional shared MariaDB/MySQL database support (bundled PyMySQL) so watched status and caches can be shared between devices.
+- [FEATURE] Reworked watched status handling with batched database writes and a background playback history worker.
+- [CODE] Expanded cache layer (base, settings and Personal Lists caches) and service handling.
+- [CODE] Rewrote parts of the player and router; updated the settings manager skin.
+- [CODE] Changes to Movies, TV Shows, Navigator and Personal Lists indexers.
+- Various fixes to Trakt and Premiumize APIs and other small bug fixes.
+
+#[COLOR red][B]BEGIN OF FORK FROM FenLightAM[/B][/COLOR]
+
 [COLOR dodgerblue][B]Version 2.1.22[/B][/COLOR]
 - [REQUEST] Added custom poster/fanart for Personal Lists. This means for the list itself. Found within the "Edit Properties" context menu item.
 - [CODE] A fair few fixes for small bugs throughout addon.

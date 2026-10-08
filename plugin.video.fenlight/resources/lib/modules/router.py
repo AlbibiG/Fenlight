@@ -40,7 +40,15 @@ def routing(sys):
 							'remove_item': playback_queue.remove_item,
 							'clear': playback_queue.clear, 'move': playback_queue.move, 'open': playback_queue.open}
 			action = mode.split('.')[1]
-			if action in ('clear', 'open'): queue_actions[action]()
+			handle = int(sys.argv[1])
+			if action != 'open' and handle >= 0:
+				# Launched as a directory (e.g. JSON-RPC Addons.ExecuteAddon): close it at once and
+				# redo the action headless via RunPlugin so the window isn't held open or re-triggered.
+				import xbmcplugin
+				from modules.kodi_utils import execute_builtin
+				xbmcplugin.endOfDirectory(handle, succeeded=False)
+				execute_builtin('RunPlugin(plugin://plugin.video.fenlight/%s)' % sys.argv[2])
+			elif action in ('clear', 'open'): queue_actions[action]()
 			else: queue_actions[action](params)
 		elif 'choice' in mode:
 			from indexers import dialogs

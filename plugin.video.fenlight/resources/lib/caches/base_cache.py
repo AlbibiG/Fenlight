@@ -4,7 +4,6 @@ from ast import literal_eval
 from os import path
 import sqlite3 as database
 from modules import kodi_utils
-from modules.utils import format_timestamp
 
 def table_creators():
 	return {
@@ -418,6 +417,7 @@ class WatchedSQLiteConnection(database.Connection):
 	def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
 		resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
 		from modules.settings import date_offset
+		from modules.utils import format_timestamp
 		last_played = format_timestamp(offset=date_offset())
 		self.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
 			(media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
@@ -431,6 +431,7 @@ class WatchedSQLiteConnection(database.Connection):
 	def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
 		if action == 'mark_as_watched':
 			from modules.settings import date_offset
+			from modules.utils import format_timestamp
 			last_played = last_played or format_timestamp(offset=date_offset())
 			self.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
 		elif action == 'mark_as_unwatched':
@@ -452,6 +453,7 @@ class PersonalListsSQLiteConnection(database.Connection):
 	"""Local SQLite personal lists database. Provides the same list methods as the MariaDB and API databases."""
 	def make_list(self, list_name, sort_order):
 		from modules.settings import date_offset
+		from modules.utils import format_timestamp
 		created = format_timestamp(offset=date_offset())
 		self.execute('INSERT OR REPLACE INTO personal_lists VALUES (?, ?, ?, ?, ?)', (list_name, repr([]), 0, created, sort_order))
 

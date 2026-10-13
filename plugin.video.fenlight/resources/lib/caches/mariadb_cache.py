@@ -1,4 +1,3 @@
-import json
 import threading
 from ast import literal_eval
 from collections import deque
@@ -175,7 +174,6 @@ def initialize_history_database():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_lists (
                     name text,
-                    total integer,
                     created text,
                     sort_order integer,
                     profile text,
@@ -184,12 +182,13 @@ def initialize_history_database():
             ''')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_list_items (
-                    item_id bigint auto_increment primary key,
                     profile varchar(191) not null,
                     list_name varchar(191) not null,
                     media_id varchar(64) not null,
-                    item text not null,
-                    unique (profile, list_name, media_id)
+                    media_type varchar(16) not null,
+                    title text,
+                    date_added text,
+                    unique (profile, list_name, media_id, media_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
 
@@ -247,17 +246,17 @@ def reconfigure_history_database():
         },
         'personal_lists': {
             'columns': {
-                'name': 'text', 'total': 'integer',
-                'created': 'text', 'sort_order': 'integer', 'profile': 'text'
+                'name': 'text', 'created': 'text', 'sort_order': 'integer', 'profile': 'text'
             },
             'unique': ['name', 'profile']
         },
         'personal_list_items': {
             'columns': {
-                'item_id': 'bigint auto_increment primary key', 'profile': 'varchar(191) not null',
-                'list_name': 'varchar(191) not null', 'media_id': 'varchar(64) not null', 'item': 'text not null'
+                'profile': 'varchar(191) not null', 'list_name': 'varchar(191) not null',
+                'media_id': 'varchar(64) not null', 'media_type': 'varchar(16) not null',
+                'title': 'text', 'date_added': 'text'
             },
-            'unique': ['profile', 'list_name', 'media_id']
+            'unique': ['profile', 'list_name', 'media_id', 'media_type']
         }
     }
 
@@ -431,17 +430,18 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             ('episode', profile_name)).fetchall()
 
     def make_list(self, list_name, sort_order):
-        self.execute('INSERT INTO personal_lists (name, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?)',
-            (list_name, 0, get_timestamp(), sort_order, watch_history_profile_name()))
+        self.execute('INSERT INTO personal_lists (name, created, sort_order, profile) VALUES (?, ?, ?, ?)',
+            (list_name, get_timestamp(), sort_order, watch_history_profile_name()))
 
     def delete_list(self, list_name):
         profile = watch_history_profile_name()
-        self.execute('DELETE FROM personal_list_items WHERE list_name=? and profile=?', (list_name, profile))
-        self.execute('DELETE FROM personal_lists WHERE name=? and profile=?', (list_name, profile))
+        self.execute('DELETE FROM personal_list_items WHERE list_name=? AND profile=?', (list_name, profile))
+        self.execute('DELETE FROM personal_lists WHERE name=? AND profile=?', (list_name, profile))
         self.execute('OPTIMIZE TABLE personal_lists')
 
     def clear_list_contents(self, list_name):
-        self.execute('DELETE FROM personal_list_items WHERE list_name=? and profile=?', (list_name, watch_history_profile_name()))
+        self.execute('DELETE FROM personal_list_items WHERE list_name=? AND profile=?',
+            (list_name, watch_history_profile_name()))
 
     def update_list_details(self, list_name, sort_order, original_name):
         profile = watch_history_profile_name()
@@ -454,19 +454,40 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             (watch_history_profile_name(),)).fetchall()
 
     def get_list(self, list_name):
-        rows = self.execute('SELECT item FROM personal_list_items WHERE list_name=? and profile=? ORDER BY item_id', (list_name, watch_history_profile_name())).fetchall()
-        return [json.loads(i[0]) for i in rows]
+        rows = self.execute(
+            'SELECT media_id, media_type, title, date_added FROM personal_list_items '
+            'WHERE list_name=? AND profile=? ORDER BY date_added',
+            (list_name, watch_history_profile_name())
+        ).fetchall()
+        return [
+            {'media_id': row[0], 'media_type': row[1], 'type': row[1], 'title': row[2], 'date_added': row[3]}
+            for row in rows
+        ]
 
     def add_list_item(self, list_name, item):
-        return self.execute('INSERT IGNORE INTO personal_list_items (profile, list_name, media_id, item) VALUES (?, ?, ?, ?)',
-            (watch_history_profile_name(), list_name, str(item['media_id']), json.dumps(item))).rowcount > 0
+        media_type = item.get('media_type') or item.get('type')
+        return self.execute(
+            'INSERT IGNORE INTO personal_list_items '
+            '(profile, list_name, media_id, media_type, title, date_added) VALUES (?, ?, ?, ?, ?, ?)',
+            (watch_history_profile_name(), list_name, str(item['media_id']), media_type, item.get('title'), item.get('date_added'))
+        ).rowcount > 0
 
     def remove_list_item(self, list_name, media_id):
-        return self.execute('DELETE FROM personal_list_items WHERE list_name=? and media_id=? and profile=?',
-            (list_name, str(media_id), watch_history_profile_name())).rowcount > 0
+        return self.execute(
+            'DELETE FROM personal_list_items WHERE list_name=? AND media_id=? AND profile=?',
+            (list_name, str(media_id), watch_history_profile_name())
+        ).rowcount > 0
 
     def add_many_list_items(self, list_name, items):
         profile = watch_history_profile_name()
-        if items:
-            self.executemany('INSERT IGNORE INTO personal_list_items (profile, list_name, media_id, item) VALUES (?, ?, ?, ?)',
-                [(profile, list_name, str(i['media_id']), json.dumps(i)) for i in items])
+        if not items:
+            return
+        self.executemany(
+            'INSERT IGNORE INTO personal_list_items '
+            '(profile, list_name, media_id, media_type, title, date_added) VALUES (?, ?, ?, ?, ?, ?)',
+            [
+                (profile, list_name, str(item['media_id']), item.get('media_type') or item.get('type'),
+                 item.get('title'), item.get('date_added'))
+                for item in items
+            ]
+        )

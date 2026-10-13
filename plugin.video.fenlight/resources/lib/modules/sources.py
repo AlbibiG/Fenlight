@@ -677,6 +677,7 @@ class Sources():
 	def autoplay_nextep_handler(self):
 		if not self.nextep_settings: return False
 		player = kodi_utils.kodi_player()
+		playback_session_id = kodi_utils.get_property('fenlight.playback_session_id')
 		if player.isPlayingVideo():
 			total_time = player.getTotalTime()
 			use_window, window_time, default_action = self.nextep_settings['use_window'], self.nextep_settings['window_time'], self.nextep_settings['default_action']
@@ -706,13 +707,17 @@ class Sources():
 					while player.isPlayingVideo(): kodi_utils.sleep(100)
 					self._make_resolve_dialog()
 					return True
-			else: return False
-		else: return False
+		# playback finished before the next up window (e.g. the user skipped to the end), so play straight away unless it was stopped
+		if kodi_utils.playback_ended(playback_session_id):
+			self._make_resolve_dialog()
+			return True
+		return False
 
 	def autoscrape_nextep_handler(self):
 		player = kodi_utils.kodi_player()
-		if player.isPlayingVideo():
-			playback_session_id = kodi_utils.get_property('fenlight.playback_session_id')
+		playback_session_id = kodi_utils.get_property('fenlight.playback_session_id')
+		# continue if playback already reached the end (e.g. the user skipped to the end), but not if it was stopped
+		if player.isPlayingVideo() or kodi_utils.playback_ended(playback_session_id):
 			results = self.get_sources()
 			if not results: return kodi_utils.notification(33092, 3000)
 			else:

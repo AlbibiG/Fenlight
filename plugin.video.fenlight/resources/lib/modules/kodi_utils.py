@@ -46,6 +46,17 @@ def get_visibility(obj):
 def get_infolabel(label):
 	return xbmc.getInfoLabel(label)
 
+def playback_ended(playback_session_id, timeout=2000):
+	"""True if the playback session reached the end of the media, False if it was stopped by the user or no end state arrives within timeout (ms).
+	The state is set by FenLightPlayer's onPlayBackEnded/onPlayBackStopped callbacks, which Kodi delivers during xbmc.sleep."""
+	if not playback_session_id: return False
+	for _ in range(int(timeout / 100)):
+		state = get_property('fenlight.playback_end_state')
+		if state == '%s|ended' % playback_session_id: return True
+		if state == '%s|stopped' % playback_session_id: return False
+		xbmc.sleep(100)
+	return False
+
 def kodi_utc_offset():
 	"""UTC offset in hours of Kodi's clock (follows the Kodi timezone setting), rounded to 15 minutes. None if unavailable."""
 	import re

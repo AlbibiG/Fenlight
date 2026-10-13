@@ -91,7 +91,7 @@ class FenLightPlayer(xbmc.Player):
             self.default_autoplay_nextep, self.default_autoscrape_nextep = self.autoplay_nextep, self.autoscrape_nextep
             self.queue_mode_override = False
             if playback_queue.has_items() and not any((self.autoplay_nextep, self.autoscrape_nextep)):
-                self.autoscrape_nextep, self.queue_mode_override = True, True
+                self.set_queue_mode_override(playback_queue.peek())
             while total_check_time <= 30 and not ku.get_visibility('Window.IsActive(fullscreenvideo)'):
                 ku.sleep(100)
                 total_check_time += 0.10
@@ -118,7 +118,7 @@ class FenLightPlayer(xbmc.Player):
                         history_worker.update(params)
                     queue_has_items = playback_queue.has_items()
                     if queue_has_items and not any((self.autoplay_nextep, self.autoscrape_nextep)):
-                        self.autoscrape_nextep, self.queue_mode_override = True, True
+                        self.set_queue_mode_override(playback_queue.peek())
                         self.nextep_info_gathered = False
                     elif not queue_has_items and self.queue_mode_override:
                         self.autoplay_nextep, self.autoscrape_nextep = self.default_autoplay_nextep, self.default_autoscrape_nextep
@@ -130,6 +130,10 @@ class FenLightPlayer(xbmc.Player):
                         if not self.nextep_info_gathered: self.info_next_ep()
                         if round(self.total_time - self.curr_time) <= self.start_prep: self.run_next_ep(); break
                 except: pass
+            # playback reached the end before the next item was prepared (e.g. the user skipped to the end)
+            if not self.nextep_started and (self.autoplay_nextep or self.autoscrape_nextep) and self.wait_for_playback_end():
+                if not self.nextep_info_gathered: self.info_next_ep()
+                self.run_next_ep()
             ku.hide_busy_dialog()
             if not self.media_marked: self.media_watched_marker()
             self.clear_playback_properties()
@@ -213,7 +217,27 @@ class FenLightPlayer(xbmc.Player):
         try: function(params)
         except: pass
 
+    def set_queue_mode_override(self, queue_item):
+        # follow the autoplay setting of the queued item's media type, otherwise scrape ahead and show the results
+        media_type = ((queue_item or {}).get('params') or {}).get('media_type') or 'movie'
+        if st.auto_play(media_type): self.autoplay_nextep = True
+        else: self.autoscrape_nextep = True
+        self.queue_mode_override = True
+
+    def onPlayBackEnded(self):
+        self.set_playback_end_state('ended')
+
+    def onPlayBackStopped(self):
+        self.set_playback_end_state('stopped')
+
+    def set_playback_end_state(self, state):
+        if self._owns_playback_session(): ku.set_property('fenlight.playback_end_state', '%s|%s' % (self.playback_session_id, state))
+
+    def wait_for_playback_end(self):
+        return ku.playback_ended(self.playback_session_id)
+
     def run_next_ep(self):
+        self.nextep_started = True
         from modules import playback_queue
         queue_item = playback_queue.peek()
         if queue_item:
@@ -276,7 +300,7 @@ class FenLightPlayer(xbmc.Player):
             self.meta = self.sources_object.meta
             self.meta_get, self.kodi_monitor, self.playback_percent = self.meta.get, ku.kodi_monitor(), self.sources_object.playback_percent or 0.0
             self.playing_filename = self.sources_object.playing_filename
-            self.media_marked, self.nextep_info_gathered = False, False
+            self.media_marked, self.nextep_info_gathered, self.nextep_started = False, False, False
             self.playback_successful, self.cancel_all_playback = None, False
             self.playing_item = self.sources_object.playing_item
 

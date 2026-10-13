@@ -125,7 +125,7 @@ def build_next_episode_manager():
 	indicators = watched_indicators()
 	show_list = get_next_episodes(0)
 	hidden_list = get_hidden_progress_items(indicators)
-	if indicators == 0: icon, mode = kodi_utils.get_icon('folder'), 'hide_unhide_progress_items'
+	if indicators != 1: icon, mode = kodi_utils.get_icon('folder'), 'hide_unhide_progress_items'
 	else: icon, mode = kodi_utils.get_icon('trakt'), 'trakt.hide_unhide_progress_items'
 	threads = list(make_thread_list(_process, show_list))
 	[i.join() for i in threads]

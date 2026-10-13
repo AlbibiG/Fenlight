@@ -1,4 +1,9 @@
-﻿[COLOR dodgerblue][B]Version 1.1.19-1.1.26[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.27[/B][/COLOR]
+- [BUG] Fixed build_next_episode_manager to include MariaDB.
+- [BUG] Fixed autoplay of queue after movie.
+- [BUG] Fixed autoplay not working if skipping to end.
+
+[COLOR dodgerblue][B]Version 1.1.19-1.1.26[/B][/COLOR]
 - [CODE] Convert date strings to timestamp for SQL. Uses UTC.
 - [BUG] Fix circular import.
 - [BUG] Fix timestamp from hardcoded 5.

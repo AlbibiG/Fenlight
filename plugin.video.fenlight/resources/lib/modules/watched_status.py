@@ -1,11 +1,10 @@
-from datetime import datetime
 from threading import Condition, Thread
 from time import monotonic
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
 from caches.base_cache import connect_database, database
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
 from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh, logger
-from modules.utils import get_datetime, adjust_premiered_date, sort_for_article, make_thread_list
+from modules.utils import get_datetime, format_timestamp, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
 
 def get_database(watched_indicator=None):
@@ -35,8 +34,7 @@ def hide_unhide_progress_items(params):
 	if refresh: kodi_refresh()
 
 def get_last_played_value(watched_indicators):
-	if watched_indicators == 0: return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-	else: return datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+	return format_timestamp(offset=settings.date_offset())
 
 def make_batch_insert(action, media_type, media_id, season, episode, last_played, title):
 	if action == 'mark_as_watched': return (media_type, media_id, season, episode, last_played, title)
@@ -108,7 +106,7 @@ def record_historical_playback_stop(params):
 			episode=episode, 
 			title=title,
 			started=started,
-			ended=datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+			ended=format_timestamp(offset=settings.date_offset()),
 			play_event=play_event, 
 			resume_point=resume_point, 
 			curr_time=curr_time, 

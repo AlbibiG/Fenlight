@@ -1,4 +1,7 @@
 ﻿[COLOR dodgerblue][B]Version 1.1.16-1.1.18[/B][/COLOR]
+- [CODE] Convert date strings to timestamp for SQL.
+
+[COLOR dodgerblue][B]Version 1.1.16-1.1.18[/B][/COLOR]
 - [CODE] Removed all JSON fields from MariaDB tables.
 
 [COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]

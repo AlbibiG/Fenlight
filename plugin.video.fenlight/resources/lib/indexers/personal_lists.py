@@ -10,8 +10,8 @@ from caches.personal_lists_cache import personal_lists_cache
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from modules import kodi_utils
-from modules.utils import paginate_list, sort_for_article, get_current_timestamp
-from modules.settings import paginate, page_limit
+from modules.utils import paginate_list, sort_for_article, get_current_timestamp, format_timestamp
+from modules.settings import paginate, page_limit, date_offset
 # logger = kodi_utils.logger
 
 def get_personal_lists(params):
@@ -326,7 +326,7 @@ def process_trakt_list(chosen_list):
 			title = item['title']
 			try: release_date = item['released'].split('T')[0]
 			except: release_date = item['released']
-			date_added = current_time + count
+			date_added = format_timestamp(current_time + count, date_offset())
 			new_contents_append({'media_id': str(media_id), 'title': title, 'type': media_type_check[media_type],
 								'release_date': release_date, 'date_added': str(date_added)})
 		except: continue

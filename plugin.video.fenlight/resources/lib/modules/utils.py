@@ -9,7 +9,7 @@ from html import unescape
 from queue import SimpleQueue
 from threading import Thread, activeCount
 from importlib import import_module
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from modules.settings import max_threads
 from modules.kodi_utils import sleep
 from modules.kodi_utils import logger
@@ -104,6 +104,10 @@ def get_datetime(string=False, dt=False):
 
 def get_current_timestamp():
 	return int(time.time())
+
+def format_timestamp(timestamp=None, offset=0):
+	if timestamp is None: timestamp = get_current_timestamp()
+	return datetime.fromtimestamp(timestamp, timezone(timedelta(hours=offset))).isoformat(timespec='milliseconds')
 	
 def adjust_premiered_date(orig_date, adjust_hours):
 	if not orig_date: return None, None

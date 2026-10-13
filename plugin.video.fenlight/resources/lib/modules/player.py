@@ -4,7 +4,7 @@ from threading import Thread
 from uuid import uuid4
 from apis.trakt_api import make_trakt_slug
 from modules import kodi_utils as ku, settings as st, watched_status as ws
-from modules.utils import get_datetime
+from modules.utils import format_timestamp
 
 class FenLightPlayer(xbmc.Player):
     def __init__ (self):
@@ -98,7 +98,7 @@ class FenLightPlayer(xbmc.Player):
             try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
             except: self.total_time, self.curr_time = 0, 0
             if st.watched_indicators() not in (0, 1):
-                media_started = get_datetime(dt=True).strftime('%Y-%m-%d %H:%M:%S')
+                media_started = format_timestamp(offset=st.date_offset())
                 params = self.create_params({'started' : media_started})
                 history_worker = ws.PlaybackHistoryWorker(params)
             ku.hide_busy_dialog()

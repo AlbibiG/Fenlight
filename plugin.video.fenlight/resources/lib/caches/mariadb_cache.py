@@ -1,12 +1,12 @@
 import threading
 from ast import literal_eval
 from collections import deque
-from datetime import datetime
 
 import pymysql
 import xbmc
-from caches.base_cache import SQLDatabaseWrapper, get_timestamp
-from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name
+from caches.base_cache import SQLDatabaseWrapper
+from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name, date_offset
+from modules.utils import format_timestamp
 
 _pool = None
 _pool_lock = threading.Lock()
@@ -126,7 +126,7 @@ def initialize_history_database():
                     episode integer,
                     resume_point text,
                     curr_time text,
-                    last_played text,
+                    last_played timestamp,
                     resume_id integer,
                     title text,
                     profile text,
@@ -141,8 +141,8 @@ def initialize_history_database():
                     episode integer,
                     resume_point text,
                     curr_time text,
-                    started text,
-                    ended text,
+                    started timestamp,
+                    ended timestamp,
                     resume_id integer,
                     play_event text,
                     title text,
@@ -156,7 +156,7 @@ def initialize_history_database():
                     media_id text not null,
                     season integer,
                     episode integer,
-                    last_played text,
+                    last_played timestamp,
                     title text,
                     profile text,
                     unique (db_type, media_id, season, episode, profile)
@@ -174,7 +174,7 @@ def initialize_history_database():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_lists (
                     name text,
-                    created text,
+                    created timestamp,
                     sort_order integer,
                     profile text,
                     unique(name, profile)
@@ -187,7 +187,7 @@ def initialize_history_database():
                     media_id varchar(64) not null,
                     media_type varchar(16) not null,
                     title text,
-                    date_added text,
+                    date_added timestamp,
                     release_date text,
                     unique (profile, list_name, media_id, media_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -399,7 +399,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
         resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
-        last_played = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        last_played = format_timestamp(offset=date_offset())
         self.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, watch_history_profile_name()))
 
@@ -415,7 +415,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
         profile_name = watch_history_profile_name()
         if action == 'mark_as_watched':
-            last_played = last_played or datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+            last_played = last_played or format_timestamp(offset=date_offset())
             self.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile_name))
         elif action == 'mark_as_unwatched':
             self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
@@ -438,7 +438,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def make_list(self, list_name, sort_order):
         self.execute('INSERT INTO personal_lists (name, created, sort_order, profile) VALUES (?, ?, ?, ?)',
-            (list_name, get_timestamp(), sort_order, watch_history_profile_name()))
+            (list_name, format_timestamp(offset=date_offset()), sort_order, watch_history_profile_name()))
 
     def delete_list(self, list_name):
         profile = watch_history_profile_name()

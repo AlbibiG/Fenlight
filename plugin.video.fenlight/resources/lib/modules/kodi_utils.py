@@ -50,7 +50,7 @@ def kodi_utc_offset():
 	"""UTC offset in hours of Kodi's clock (follows the Kodi timezone setting), rounded to 15 minutes. None if unavailable."""
 	from datetime import datetime, timezone
 	try:
-		kodi_time = datetime.strptime('%s %s' % (xbmc.getInfoLabel('System.Date(yyyy-mm-dd)'), xbmc.getInfoLabel('System.Time(hh:mm:ss)')), '%Y-%m-%d %H:%M:%S')
+		kodi_time = datetime.strptime('%s %s' % (xbmc.getInfoLabel('System.Date(yyyy-mm-dd)'), xbmc.getInfoLabel('System.Time(HH:mm:ss)')), '%Y-%m-%d %H:%M:%S')
 		hours = round((kodi_time - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 900) / 4
 	except: return None
 	# the date and time labels are read separately, so correct for a midnight rollover between them

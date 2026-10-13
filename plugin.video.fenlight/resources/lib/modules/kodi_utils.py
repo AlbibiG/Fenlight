@@ -48,9 +48,17 @@ def get_infolabel(label):
 
 def kodi_utc_offset():
 	"""UTC offset in hours of Kodi's clock (follows the Kodi timezone setting), rounded to 15 minutes. None if unavailable."""
+	import re
 	from datetime import datetime, timezone
 	try:
-		kodi_time = datetime.strptime('%s %s' % (xbmc.getInfoLabel('System.Date(yyyy-mm-dd)'), xbmc.getInfoLabel('System.Time(HH:mm:ss)')), '%Y-%m-%d %H:%M:%S')
+		# System.Time follows the region's 12/24 hour setting, so read the AM/PM marker and convert to 24 hour
+		hour, minute, second, meridiem = re.match(r'(\d{1,2}):(\d{2}):(\d{2})\s*(.*)', xbmc.getInfoLabel('System.Time(hh:mm:ss xx)').strip()).groups()
+		hour, meridiem = int(hour), meridiem.strip().lower()
+		am, pm = (xbmc.getRegion('meridiem').lower().split('/') + [''])[:2]
+		if meridiem and meridiem == pm.strip() and hour < 12: hour += 12
+		elif meridiem and meridiem == am.strip() and hour == 12: hour = 0
+		kodi_date = datetime.strptime(xbmc.getInfoLabel('System.Date(yyyy-mm-dd)'), '%Y-%m-%d')
+		kodi_time = kodi_date.replace(hour=hour, minute=int(minute), second=int(second))
 		hours = round((kodi_time - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 900) / 4
 	except: return None
 	# the date and time labels are read separately, so correct for a midnight rollover between them

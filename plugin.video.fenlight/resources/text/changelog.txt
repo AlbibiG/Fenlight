@@ -1,5 +1,5 @@
-﻿[COLOR dodgerblue][B]Version 1.1.16-1.1.17[/B][/COLOR]
-- [CODE] Removed all JSON fields from MariaDB tables. Remove old JSON list table.
+﻿[COLOR dodgerblue][B]Version 1.1.16-1.1.18[/B][/COLOR]
+- [CODE] Removed all JSON fields from MariaDB tables.
 
 [COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]
 - [BUG] Fix timestamp issue in personal_lists.

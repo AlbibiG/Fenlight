@@ -188,9 +188,16 @@ def initialize_history_database():
                     media_type varchar(16) not null,
                     title text,
                     date_added text,
+                    release_date text,
                     unique (profile, list_name, media_id, media_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
+            cursor.execute('SHOW COLUMNS FROM personal_list_items')
+            item_columns = {row[0].lower() for row in cursor.fetchall()}
+            if 'item' in item_columns:
+                cursor.execute('ALTER TABLE personal_list_items DROP COLUMN item')
+            if 'release_date' not in item_columns:
+                cursor.execute('ALTER TABLE personal_list_items ADD COLUMN release_date text')
 
         conn.commit()
         return True
@@ -254,7 +261,7 @@ def reconfigure_history_database():
             'columns': {
                 'profile': 'varchar(191) not null', 'list_name': 'varchar(191) not null',
                 'media_id': 'varchar(64) not null', 'media_type': 'varchar(16) not null',
-                'title': 'text', 'date_added': 'text'
+                'title': 'text', 'date_added': 'text', 'release_date': 'text'
             },
             'unique': ['profile', 'list_name', 'media_id', 'media_type']
         }
@@ -455,12 +462,13 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def get_list(self, list_name):
         rows = self.execute(
-            'SELECT media_id, media_type, title, date_added FROM personal_list_items '
+            'SELECT media_id, media_type, title, date_added, release_date FROM personal_list_items '
             'WHERE list_name=? AND profile=? ORDER BY date_added',
             (list_name, watch_history_profile_name())
         ).fetchall()
         return [
-            {'media_id': row[0], 'media_type': row[1], 'type': row[1], 'title': row[2], 'date_added': row[3]}
+            {'media_id': row[0], 'media_type': row[1], 'type': row[1], 'title': row[2],
+             'date_added': row[3], 'release_date': row[4]}
             for row in rows
         ]
 
@@ -468,8 +476,10 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         media_type = item.get('media_type') or item.get('type')
         return self.execute(
             'INSERT IGNORE INTO personal_list_items '
-            '(profile, list_name, media_id, media_type, title, date_added) VALUES (?, ?, ?, ?, ?, ?)',
-            (watch_history_profile_name(), list_name, str(item['media_id']), media_type, item.get('title'), item.get('date_added'))
+            '(profile, list_name, media_id, media_type, title, date_added, release_date) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (watch_history_profile_name(), list_name, str(item['media_id']), media_type,
+             item.get('title'), item.get('date_added'), item.get('release_date'))
         ).rowcount > 0
 
     def remove_list_item(self, list_name, media_id):
@@ -484,10 +494,11 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             return
         self.executemany(
             'INSERT IGNORE INTO personal_list_items '
-            '(profile, list_name, media_id, media_type, title, date_added) VALUES (?, ?, ?, ?, ?, ?)',
+            '(profile, list_name, media_id, media_type, title, date_added, release_date) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
                 (profile, list_name, str(item['media_id']), item.get('media_type') or item.get('type'),
-                 item.get('title'), item.get('date_added'))
+                 item.get('title'), item.get('date_added'), item.get('release_date'))
                 for item in items
             ]
         )

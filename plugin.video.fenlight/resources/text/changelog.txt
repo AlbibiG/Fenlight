@@ -1,4 +1,7 @@
-﻿[COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.16[/B][/COLOR]
+- [CODE] Added additional metadata to the personal lists SQL.
+
+[COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]
 - [BUG] Fix timestamp issue in personal_lists.
 
 [COLOR red]BREAKING CHANGE[/COLOR][COLOR dodgerblue][B]Version 1.1.14[/B][/COLOR]

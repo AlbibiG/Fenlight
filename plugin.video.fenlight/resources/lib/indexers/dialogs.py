@@ -61,8 +61,10 @@ def personallists_manager_choice(params):
 		kwargs = {'items': json.dumps(list_items), 'narrow_window': 'true'}
 		list_name = kodi_utils.select_dialog([i[1] for i in choices], **kwargs)
 		if list_name == None: return
-	if action == 'add': new_contents = {'media_id': params['tmdb_id'], 'title': params['title'], 'type': list_type,
-										'release_date': params['premiered'], 'date_added': params['current_time']}
+	if action == 'add':
+		from modules.utils import get_current_timestamp
+		new_contents = {'media_id': params['tmdb_id'], 'title': params['title'], 'type': list_type,
+						'release_date': params['premiered'], 'date_added': get_current_timestamp()}
 	else: new_contents = params['tmdb_id']
 	from caches.personal_lists_cache import personal_lists_cache
 	result = personal_lists_cache.add_remove_list_item(action, new_contents, list_name)

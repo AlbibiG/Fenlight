@@ -1,4 +1,7 @@
-﻿[COLOR red]BREAKING CHANGE[/COLOR][COLOR dodgerblue][B]Version 1.1.14[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]
+- [BUG] Fix timestamp issue in personal_lists.
+
+[COLOR red]BREAKING CHANGE[/COLOR][COLOR dodgerblue][B]Version 1.1.14[/B][/COLOR]
 - [CODE] Optimized watched_status and personal_lists_cache functions. Connects to DB then calls function through class.
 - [COLOR RED]BREAKING CHANGE[/COLOR][CODE] Changed MariaDB to use row-based lists instead of JSON. Old lists using the JSON format will be overwritten.
 

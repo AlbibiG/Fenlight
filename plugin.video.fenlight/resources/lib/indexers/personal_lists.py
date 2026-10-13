@@ -6,11 +6,11 @@ import json
 from random import shuffle
 from threading import Thread
 from urllib.parse import unquote
-from caches.personal_lists_cache import personal_lists_cache, get_timestamp
+from caches.personal_lists_cache import personal_lists_cache
 from indexers.movies import Movies
 from indexers.tvshows import TVShows
 from modules import kodi_utils
-from modules.utils import paginate_list, sort_for_article
+from modules.utils import paginate_list, sort_for_article, get_current_timestamp
 from modules.settings import paginate, page_limit
 # logger = kodi_utils.logger
 
@@ -306,7 +306,7 @@ def process_trakt_list(chosen_list):
 	media_type_check = {'movie': 'movie', 'show': 'tvshow', 'tvshow': 'tvshow'}
 	new_contents = []
 	new_contents_append = new_contents.append
-	current_time = get_timestamp()
+	current_time = get_current_timestamp()
 	trakt_list_type, trakt_list_name = chosen_list.get('list_type'), chosen_list.get('name')
 	if trakt_list_type in ('collection', 'watchlist'):
 		trakt_media_type = chosen_list.get('media_type')

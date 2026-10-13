@@ -1,4 +1,4 @@
-﻿[COLOR dodgerblue][B]Version 1.1.19-1.1.20[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.19-1.1.21[/B][/COLOR]
 - [CODE] Convert date strings to timestamp for SQL.
 - [BUG] Fix circular import.
 

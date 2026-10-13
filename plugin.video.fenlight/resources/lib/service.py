@@ -32,7 +32,7 @@ class DatabaseMaintenance:
 		try:
 			from caches.base_cache import make_databases
 			make_databases()
-			if settings.watched_indicators == 2:
+			if settings.watched_indicators() == 2:
 				from caches.mariadb_cache import initialize_history_database
 				initialize_history_database()
 		except Exception as exc:

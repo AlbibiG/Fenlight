@@ -1,6 +1,7 @@
 import threading
 from ast import literal_eval
 from collections import deque
+from datetime import datetime, timedelta, timezone
 
 import pymysql
 import xbmc
@@ -90,6 +91,25 @@ def _log_error(message):
         pass
 
 
+def to_sql_timestamp(value):
+    """Convert an ISO string, epoch value or datetime to 'YYYY-MM-DD HH:MM:SS' in the date_offset timezone for TIMESTAMP columns"""
+    if value in (None, ''):
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    else:
+        value = str(value).strip()
+        if value.isdigit():
+            value = format_timestamp(int(value), date_offset())
+        try:
+            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone(timedelta(hours=date_offset())))
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
 def get_connection_config():
     return {
         'host': watch_history_server_ip(),
@@ -126,7 +146,7 @@ def initialize_history_database():
                     episode integer,
                     resume_point text,
                     curr_time text,
-                    last_played timestamp,
+                    last_played timestamp NULL DEFAULT NULL,
                     resume_id integer,
                     title text,
                     profile text,
@@ -141,13 +161,13 @@ def initialize_history_database():
                     episode integer,
                     resume_point text,
                     curr_time text,
-                    started timestamp,
-                    ended timestamp,
+                    started timestamp NULL DEFAULT NULL,
+                    ended timestamp NULL DEFAULT NULL,
                     resume_id integer,
                     play_event text,
                     title text,
                     profile text,
-                    unique (db_type, media_id, season, episode, last_played, profile, play_event)
+                    unique (db_type, media_id, season, episode, started, profile, play_event)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
@@ -156,7 +176,7 @@ def initialize_history_database():
                     media_id text not null,
                     season integer,
                     episode integer,
-                    last_played timestamp,
+                    last_played timestamp NULL DEFAULT NULL,
                     title text,
                     profile text,
                     unique (db_type, media_id, season, episode, profile)
@@ -174,7 +194,7 @@ def initialize_history_database():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_lists (
                     name text,
-                    created timestamp,
+                    created timestamp NULL DEFAULT NULL,
                     sort_order integer,
                     profile text,
                     unique(name, profile)
@@ -187,18 +207,37 @@ def initialize_history_database():
                     media_id varchar(64) not null,
                     media_type varchar(16) not null,
                     title text,
-                    date_added timestamp,
+                    date_added timestamp NULL DEFAULT NULL,
                     release_date text,
                     unique (profile, list_name, media_id, media_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
-            cursor.execute('SHOW COLUMNS FROM personal_list_items')
-            item_columns = {row[0].lower() for row in cursor.fetchall()}
-            if 'item' in item_columns:
-                cursor.execute('ALTER TABLE personal_list_items DROP COLUMN item')
-            if 'release_date' not in item_columns:
-                cursor.execute('ALTER TABLE personal_list_items ADD COLUMN release_date text')
-
+            timestamp_columns = (
+                ('progress', 'last_played'),
+                ('historical', 'started'),
+                ('historical', 'ended'),
+                ('watched', 'last_played'),
+                ('personal_lists', 'created'),
+                ('personal_list_items', 'date_added')
+            )
+            for table_name, column_name in timestamp_columns:
+                cursor.execute('SHOW COLUMNS FROM %s' % table_name)
+                columns = {row[0].lower(): row for row in cursor.fetchall()}
+                column = columns.get(column_name)
+                if not column:
+                    continue
+                column_type, nullable, extra = column[1].lower(), column[2], (column[5] or '').lower()
+                if column_type == 'timestamp' and nullable == 'YES' and 'on update' not in extra:
+                    continue
+                if not column_type.startswith('timestamp'):
+                    # convert existing text values before changing the column type, invalid values become NULL
+                    cursor.execute('SELECT DISTINCT %s FROM %s WHERE %s IS NOT NULL' % (column_name, table_name, column_name))
+                    updates = [(to_sql_timestamp(row[0]), row[0]) for row in cursor.fetchall()]
+                    cursor.executemany('UPDATE IGNORE %s SET %s = %%s WHERE %s = %%s' % (table_name, column_name, column_name),
+                        [i for i in updates if i[0] != i[1]])
+                    cursor.execute("UPDATE %s SET %s = NULL WHERE %s NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'"
+                        % (table_name, column_name, column_name))
+                cursor.execute('ALTER TABLE %s MODIFY COLUMN %s timestamp NULL DEFAULT NULL' % (table_name, column_name))
         conn.commit()
         return True
     except Exception as exc:
@@ -221,7 +260,7 @@ def reconfigure_history_database():
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
-                'last_played': 'text', 'resume_id': 'integer',
+                'last_played': 'timestamp NULL DEFAULT NULL', 'resume_id': 'integer',
                 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
@@ -231,7 +270,7 @@ def reconfigure_history_database():
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
-                'started': 'text', 'ended': 'text', 'resume_id': 'integer',
+                'started': 'timestamp NULL DEFAULT NULL', 'ended': 'timestamp NULL DEFAULT NULL', 'resume_id': 'integer',
                 'play_event': 'text', 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'started', 'play_event']
@@ -240,7 +279,7 @@ def reconfigure_history_database():
             'columns': {
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
-                'last_played': 'text', 'title': 'text', 'profile': 'text'
+                'last_played': 'timestamp NULL DEFAULT NULL', 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
         },
@@ -253,7 +292,7 @@ def reconfigure_history_database():
         },
         'personal_lists': {
             'columns': {
-                'name': 'text', 'created': 'text', 'sort_order': 'integer', 'profile': 'text'
+                'name': 'text', 'created': 'timestamp NULL DEFAULT NULL', 'sort_order': 'integer', 'profile': 'text'
             },
             'unique': ['name', 'profile']
         },
@@ -261,7 +300,7 @@ def reconfigure_history_database():
             'columns': {
                 'profile': 'varchar(191) not null', 'list_name': 'varchar(191) not null',
                 'media_id': 'varchar(64) not null', 'media_type': 'varchar(16) not null',
-                'title': 'text', 'date_added': 'text', 'release_date': 'text'
+                'title': 'text', 'date_added': 'timestamp NULL DEFAULT NULL', 'release_date': 'text'
             },
             'unique': ['profile', 'list_name', 'media_id', 'media_type']
         }
@@ -331,6 +370,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     """Direct MariaDB watched database. Provides the same watched methods as the SQLite and API databases."""
     def record_historical_play(self, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
         profile = watch_history_profile_name()
+        started, ended = to_sql_timestamp(started), to_sql_timestamp(ended)
         if play_event == 'started':
             self.execute('''INSERT IGNORE INTO historical
                         (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
@@ -346,11 +386,11 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
                         media_type, media_id, season, episode, profile, started))
 
     def get_watched_movies(self):
-        return self.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?',
+        return self.execute('SELECT media_id, title, CAST(last_played AS CHAR) FROM watched WHERE db_type = ? and profile = ?',
             ('movie', watch_history_profile_name())).fetchall()
 
     def get_watched_info_tvshow(self):
-        return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
+        return self.execute('SELECT media_id, season, episode, title, CAST(MAX(last_played) AS CHAR), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
             ('episode', watch_history_profile_name())).fetchall()
 
     def get_watched_info_season(self, media_id):
@@ -363,9 +403,9 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def get_recently_watched(self, media_type, short_list=1):
         if short_list:
-            return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ? ORDER BY last_played DESC',
+            return self.execute('SELECT media_id, season, episode, title, CAST(last_played AS CHAR) FROM watched WHERE db_type = ? and profile = ? ORDER BY last_played DESC',
                 (media_type, watch_history_profile_name())).fetchall()
-        return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ?',
+        return self.execute('SELECT media_id, season, episode, title, CAST(last_played AS CHAR) FROM watched WHERE db_type = ? and profile = ?',
             (media_type, watch_history_profile_name())).fetchall()
 
     def get_hidden_progress_items(self):
@@ -390,16 +430,16 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             ('episode', str(media_id), int(season), watch_history_profile_name())).fetchall()
 
     def get_in_progress_movies(self):
-        return self.execute('SELECT media_id, title, last_played FROM progress WHERE db_type = ? and profile = ?',
+        return self.execute('SELECT media_id, title, CAST(last_played AS CHAR) FROM progress WHERE db_type = ? and profile = ?',
             ('movie', watch_history_profile_name())).fetchall()
 
     def get_in_progress_episodes(self):
-        return self.execute('SELECT media_id, season, episode, resume_point, last_played, title FROM progress WHERE db_type = ? and profile = ?',
+        return self.execute('SELECT media_id, season, episode, resume_point, CAST(last_played AS CHAR), title FROM progress WHERE db_type = ? and profile = ?',
             ('episode', watch_history_profile_name())).fetchall()
 
     def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
         resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
-        last_played = format_timestamp(offset=date_offset())
+        last_played = to_sql_timestamp(format_timestamp(offset=date_offset()))
         self.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, watch_history_profile_name()))
 
@@ -415,7 +455,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
         profile_name = watch_history_profile_name()
         if action == 'mark_as_watched':
-            last_played = last_played or format_timestamp(offset=date_offset())
+            last_played = to_sql_timestamp(last_played or format_timestamp(offset=date_offset()))
             self.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile_name))
         elif action == 'mark_as_unwatched':
             self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
@@ -424,6 +464,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         params = [item + (profile_name,) for item in insert_list]
         if action == 'mark_as_watched':
+            params = [i[:4] + (to_sql_timestamp(i[4]),) + i[5:] for i in params]
             self.executemany('INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', params)
         elif action == 'mark_as_unwatched':
             self.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', params)
@@ -432,13 +473,13 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         if nextep_content == 0:
             return self.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type = ? and profile = ?)
-                                SELECT media_id, season, episode, title, last_played FROM cte WHERE rn = 1''', ('episode', profile_name)).fetchall()
-        return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
+                                SELECT media_id, season, episode, title, CAST(last_played AS CHAR) FROM cte WHERE rn = 1''', ('episode', profile_name)).fetchall()
+        return self.execute('SELECT media_id, season, episode, title, CAST(MAX(last_played) AS CHAR), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
             ('episode', profile_name)).fetchall()
 
     def make_list(self, list_name, sort_order):
         self.execute('INSERT INTO personal_lists (name, created, sort_order, profile) VALUES (?, ?, ?, ?)',
-            (list_name, format_timestamp(offset=date_offset()), sort_order, watch_history_profile_name()))
+            (list_name, to_sql_timestamp(format_timestamp(offset=date_offset())), sort_order, watch_history_profile_name()))
 
     def delete_list(self, list_name):
         profile = watch_history_profile_name()
@@ -462,7 +503,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def get_list(self, list_name):
         rows = self.execute(
-            'SELECT media_id, media_type, title, date_added, release_date FROM personal_list_items '
+            'SELECT media_id, media_type, title, CAST(date_added AS CHAR), release_date FROM personal_list_items '
             'WHERE list_name=? AND profile=? ORDER BY date_added',
             (list_name, watch_history_profile_name())
         ).fetchall()
@@ -479,7 +520,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             '(profile, list_name, media_id, media_type, title, date_added, release_date) '
             'VALUES (?, ?, ?, ?, ?, ?, ?)',
             (watch_history_profile_name(), list_name, str(item['media_id']), media_type,
-             item.get('title'), item.get('date_added'), item.get('release_date'))
+             item.get('title'), to_sql_timestamp(item.get('date_added')), item.get('release_date'))
         ).rowcount > 0
 
     def remove_list_item(self, list_name, media_id):
@@ -498,7 +539,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             'VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
                 (profile, list_name, str(item['media_id']), item.get('media_type') or item.get('type'),
-                 item.get('title'), item.get('date_added'), item.get('release_date'))
+                 item.get('title'), to_sql_timestamp(item.get('date_added')), item.get('release_date'))
                 for item in items
             ]
         )

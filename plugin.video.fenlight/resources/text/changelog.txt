@@ -1,6 +1,7 @@
-﻿[COLOR dodgerblue][B]Version 1.1.19-1.1.21[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.19-1.1.22[/B][/COLOR]
 - [CODE] Convert date strings to timestamp for SQL.
 - [BUG] Fix circular import.
+- [BUG] Fix timestamp from hardcoded 5.
 
 [COLOR dodgerblue][B]Version 1.1.16-1.1.18[/B][/COLOR]
 - [CODE] Removed all JSON fields from MariaDB tables.

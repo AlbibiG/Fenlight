@@ -1,12 +1,12 @@
 import threading
 from ast import literal_eval
 from collections import deque
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pymysql
 import xbmc
 from caches.base_cache import SQLDatabaseWrapper
-from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name, date_offset
+from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name
 from modules.utils import format_timestamp
 
 _pool = None
@@ -92,22 +92,22 @@ def _log_error(message):
 
 
 def to_sql_timestamp(value):
-    """Convert an ISO string, epoch value or datetime to 'YYYY-MM-DD HH:MM:SS' in the date_offset timezone for TIMESTAMP columns"""
+    """Convert an ISO string, epoch value or datetime to a UTC 'YYYY-MM-DD HH:MM:SS' string for TIMESTAMP columns.
+    Values without timezone info are treated as local time. Connections use time_zone '+00:00' so MariaDB stores them as-is."""
     if value in (None, ''):
         return None
     if isinstance(value, datetime):
         dt = value
     else:
         value = str(value).strip()
-        if value.isdigit():
-            value = format_timestamp(int(value), date_offset())
         try:
-            dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-        except ValueError:
+            if value.isdigit():
+                dt = datetime.fromtimestamp(int(value), timezone.utc)
+            else:
+                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except (ValueError, OverflowError, OSError):
             return None
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone(timedelta(hours=date_offset())))
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
+    return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def get_connection_config():
@@ -119,6 +119,7 @@ def get_connection_config():
         'database': watch_history_database_name(),
         'charset': 'utf8mb4',
         'autocommit': True,
+        'init_command': "SET time_zone = '+00:00'",
     }
 
 
@@ -439,7 +440,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
         resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
-        last_played = to_sql_timestamp(format_timestamp(offset=date_offset()))
+        last_played = to_sql_timestamp(format_timestamp())
         self.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, watch_history_profile_name()))
 
@@ -455,7 +456,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
         profile_name = watch_history_profile_name()
         if action == 'mark_as_watched':
-            last_played = to_sql_timestamp(last_played or format_timestamp(offset=date_offset()))
+            last_played = to_sql_timestamp(last_played or format_timestamp())
             self.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile_name))
         elif action == 'mark_as_unwatched':
             self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
@@ -479,7 +480,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
 
     def make_list(self, list_name, sort_order):
         self.execute('INSERT INTO personal_lists (name, created, sort_order, profile) VALUES (?, ?, ?, ?)',
-            (list_name, to_sql_timestamp(format_timestamp(offset=date_offset())), sort_order, watch_history_profile_name()))
+            (list_name, to_sql_timestamp(format_timestamp()), sort_order, watch_history_profile_name()))
 
     def delete_list(self, list_name):
         profile = watch_history_profile_name()

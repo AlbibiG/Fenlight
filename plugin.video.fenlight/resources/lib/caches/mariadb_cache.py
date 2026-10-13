@@ -1,9 +1,13 @@
+import json
 import threading
+from ast import literal_eval
 from collections import deque
+from datetime import datetime
 
 import pymysql
 import xbmc
-from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name
+from caches.base_cache import SQLDatabaseWrapper, get_timestamp
+from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name
 
 _pool = None
 _pool_lock = threading.Lock()
@@ -171,12 +175,21 @@ def initialize_history_database():
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_lists (
                     name text,
-                    contents text,
                     total integer,
                     created text,
                     sort_order integer,
                     profile text,
                     unique(name, profile)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS personal_list_items (
+                    item_id bigint auto_increment primary key,
+                    profile varchar(191) not null,
+                    list_name varchar(191) not null,
+                    media_id varchar(64) not null,
+                    item text not null,
+                    unique (profile, list_name, media_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
 
@@ -234,10 +247,17 @@ def reconfigure_history_database():
         },
         'personal_lists': {
             'columns': {
-                'name': 'text', 'contents': 'text', 'total': 'integer',
+                'name': 'text', 'total': 'integer',
                 'created': 'text', 'sort_order': 'integer', 'profile': 'text'
             },
             'unique': ['name', 'profile']
+        },
+        'personal_list_items': {
+            'columns': {
+                'item_id': 'bigint auto_increment primary key', 'profile': 'varchar(191) not null',
+                'list_name': 'varchar(191) not null', 'media_id': 'varchar(64) not null', 'item': 'text not null'
+            },
+            'unique': ['profile', 'list_name', 'media_id']
         }
     }
 
@@ -299,3 +319,154 @@ def reconfigure_history_database():
             conn.close()
         except Exception:
             pass
+
+
+class MariaDBWatchedDatabase(SQLDatabaseWrapper):
+    """Direct MariaDB watched database. Provides the same watched methods as the SQLite and API databases."""
+    def record_historical_play(self, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
+        profile = watch_history_profile_name()
+        if play_event == 'started':
+            self.execute('''INSERT IGNORE INTO historical
+                        (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                        (media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title, profile))
+        else:
+            self.execute('''UPDATE historical
+                        SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
+                        WHERE db_type = ? AND media_id = ? AND season IS ? AND episode IS ? AND profile = ? AND started = ?
+                        ORDER BY started DESC
+                        LIMIT 1''',
+                        (str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
+                        media_type, media_id, season, episode, profile, started))
+
+    def get_watched_movies(self):
+        return self.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ? and profile = ?',
+            ('movie', watch_history_profile_name())).fetchall()
+
+    def get_watched_info_tvshow(self):
+        return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
+            ('episode', watch_history_profile_name())).fetchall()
+
+    def get_watched_info_season(self, media_id):
+        return self.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
+            ('episode', str(media_id), watch_history_profile_name())).fetchall()
+
+    def get_watched_info_episode(self, media_id):
+        return self.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?',
+            ('episode', str(media_id), watch_history_profile_name())).fetchall()
+
+    def get_recently_watched(self, media_type, short_list=1):
+        if short_list:
+            return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ? ORDER BY last_played DESC',
+                (media_type, watch_history_profile_name())).fetchall()
+        return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? and profile = ?',
+            (media_type, watch_history_profile_name())).fetchall()
+
+    def get_hidden_progress_items(self):
+        return self.execute('SELECT status FROM watched_status WHERE db_type = ? and profile = ?',
+            ('hidden_progress_items', watch_history_profile_name())).fetchone()[0]
+
+    def update_hidden_progress_items(self, media_id, action):
+        media_id = int(media_id)
+        try: current_items = literal_eval(self.get_hidden_progress_items()) or []
+        except: current_items = []
+        if action == 'drop':
+            if media_id not in current_items: current_items.append(media_id)
+        elif media_id in current_items: current_items.remove(media_id)
+        self.execute('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), watch_history_profile_name()))
+
+    def get_bookmarks_movie(self):
+        return self.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ? and profile = ?',
+            ('movie', watch_history_profile_name())).fetchall()
+
+    def get_bookmarks_episode(self, media_id, season):
+        return self.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
+            ('episode', str(media_id), int(season), watch_history_profile_name())).fetchall()
+
+    def get_in_progress_movies(self):
+        return self.execute('SELECT media_id, title, last_played FROM progress WHERE db_type = ? and profile = ?',
+            ('movie', watch_history_profile_name())).fetchall()
+
+    def get_in_progress_episodes(self):
+        return self.execute('SELECT media_id, season, episode, resume_point, last_played, title FROM progress WHERE db_type = ? and profile = ?',
+            ('episode', watch_history_profile_name())).fetchall()
+
+    def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
+        resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
+        last_played = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        self.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, watch_history_profile_name()))
+
+    def erase_bookmark(self, media_type, media_id, season=None, episode=None, refresh='false'):
+        self.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?',
+            (media_type, media_id, season, episode, watch_history_profile_name()))
+
+    def batch_erase_bookmark(self, insert_list, action=None):
+        profile_name = watch_history_profile_name()
+        self.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?',
+            [item + (profile_name,) for item in insert_list])
+
+    def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
+        profile_name = watch_history_profile_name()
+        if action == 'mark_as_watched':
+            last_played = last_played or datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+            self.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile_name))
+        elif action == 'mark_as_unwatched':
+            self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
+
+    def batch_watched_status_mark(self, insert_list, action):
+        profile_name = watch_history_profile_name()
+        params = [item + (profile_name,) for item in insert_list]
+        if action == 'mark_as_watched':
+            self.executemany('INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', params)
+        elif action == 'mark_as_unwatched':
+            self.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', params)
+
+    def get_next_episodes(self, nextep_content=0):
+        profile_name = watch_history_profile_name()
+        if nextep_content == 0:
+            return self.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type = ? and profile = ?)
+                                SELECT media_id, season, episode, title, last_played FROM cte WHERE rn = 1''', ('episode', profile_name)).fetchall()
+        return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? and profile = ? GROUP BY media_id',
+            ('episode', profile_name)).fetchall()
+
+    def make_list(self, list_name, sort_order):
+        self.execute('INSERT INTO personal_lists (name, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?)',
+            (list_name, 0, get_timestamp(), sort_order, watch_history_profile_name()))
+
+    def delete_list(self, list_name):
+        profile = watch_history_profile_name()
+        self.execute('DELETE FROM personal_list_items WHERE list_name=? and profile=?', (list_name, profile))
+        self.execute('DELETE FROM personal_lists WHERE name=? and profile=?', (list_name, profile))
+        self.execute('OPTIMIZE TABLE personal_lists')
+
+    def clear_list_contents(self, list_name):
+        self.execute('DELETE FROM personal_list_items WHERE list_name=? and profile=?', (list_name, watch_history_profile_name()))
+
+    def update_list_details(self, list_name, sort_order, original_name):
+        profile = watch_history_profile_name()
+        self.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=? and profile=?', (list_name, sort_order, original_name, profile))
+        if list_name != original_name:
+            self.execute('UPDATE personal_list_items SET list_name=? WHERE list_name=? and profile=?', (list_name, original_name, profile))
+
+    def get_lists(self):
+        return self.execute('SELECT l.name, (SELECT COUNT(*) FROM personal_list_items i WHERE i.list_name = l.name and i.profile = l.profile), l.sort_order FROM personal_lists l WHERE l.profile=?',
+            (watch_history_profile_name(),)).fetchall()
+
+    def get_list(self, list_name):
+        rows = self.execute('SELECT item FROM personal_list_items WHERE list_name=? and profile=? ORDER BY item_id', (list_name, watch_history_profile_name())).fetchall()
+        return [json.loads(i[0]) for i in rows]
+
+    def add_list_item(self, list_name, item):
+        return self.execute('INSERT IGNORE INTO personal_list_items (profile, list_name, media_id, item) VALUES (?, ?, ?, ?)',
+            (watch_history_profile_name(), list_name, str(item['media_id']), json.dumps(item))).rowcount > 0
+
+    def remove_list_item(self, list_name, media_id):
+        return self.execute('DELETE FROM personal_list_items WHERE list_name=? and media_id=? and profile=?',
+            (list_name, str(media_id), watch_history_profile_name())).rowcount > 0
+
+    def add_many_list_items(self, list_name, items):
+        profile = watch_history_profile_name()
+        if items:
+            self.executemany('INSERT IGNORE INTO personal_list_items (profile, list_name, media_id, item) VALUES (?, ?, ?, ?)',
+                [(profile, list_name, str(i['media_id']), json.dumps(i)) for i in items])

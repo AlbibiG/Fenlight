@@ -1,4 +1,7 @@
+import json
 import time
+from ast import literal_eval
+from datetime import datetime
 from os import path
 import sqlite3 as database
 from modules import kodi_utils
@@ -82,8 +85,8 @@ def connect_database(database_name=None):
 	kodi_utils.logger('connect_database', database_name)
 	if database_name == 'mariadb':
 		try:
-			from caches.mariadb_cache import connect
-			return SQLDatabaseWrapper(connect)
+			from caches.mariadb_cache import connect, MariaDBWatchedDatabase
+			return MariaDBWatchedDatabase(connect)
 		except Exception as exc:
 			kodi_utils.logger('connect_database MariaDB', severity='high',error_message=str(exc))
 			return False
@@ -96,7 +99,8 @@ def connect_database(database_name=None):
 			return False
 	else:
 		try:
-			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False)
+			extra = {'factory': {'watched_db': WatchedSQLiteConnection, 'trakt_db': WatchedSQLiteConnection, 'personal_lists_db': PersonalListsSQLiteConnection}[database_name]} if database_name in ('watched_db', 'trakt_db', 'personal_lists_db') else {}
+			dbcon = database.connect(database_locations(database_name), timeout=20, isolation_level=None, check_same_thread=False, **extra)
 			dbcon.execute('PRAGMA synchronous = OFF')
 			dbcon.execute('PRAGMA journal_mode = OFF')
 			return dbcon
@@ -363,3 +367,125 @@ class SQLDatabaseWrapper:
 			cursor.close()
 		finally:
 			connection.close()
+
+class WatchedSQLiteConnection(database.Connection):
+	"""Local SQLite watched database. Provides the same watched methods as the MariaDB and API databases."""
+	def record_historical_play(self, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
+		pass
+
+	def get_watched_movies(self):
+		return self.execute('SELECT media_id, title, last_played FROM watched WHERE db_type = ?', ('movie',)).fetchall()
+
+	def get_watched_info_tvshow(self):
+		return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id', ('episode',)).fetchall()
+
+	def get_watched_info_season(self, media_id):
+		return self.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? GROUP BY media_id, season', ('episode', str(media_id))).fetchall()
+
+	def get_watched_info_episode(self, media_id):
+		return self.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ?', ('episode', str(media_id))).fetchall()
+
+	def get_recently_watched(self, media_type, short_list=1):
+		if short_list:
+			return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ? ORDER BY last_played DESC', (media_type,)).fetchall()
+		return self.execute('SELECT media_id, season, episode, title, last_played FROM watched WHERE db_type = ?', (media_type,)).fetchall()
+
+	def get_hidden_progress_items(self):
+		return self.execute('SELECT status FROM watched_status WHERE db_type = ?', ('hidden_progress_items',)).fetchone()[0]
+
+	def update_hidden_progress_items(self, media_id, action):
+		media_id = int(media_id)
+		try: current_items = literal_eval(self.get_hidden_progress_items()) or []
+		except: current_items = []
+		if action == 'drop':
+			if media_id not in current_items: current_items.append(media_id)
+		elif media_id in current_items: current_items.remove(media_id)
+		self.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items)))
+
+	def get_bookmarks_movie(self):
+		return self.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
+
+	def get_bookmarks_episode(self, media_id, season):
+		return self.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ?',
+			('episode', str(media_id), int(season))).fetchall()
+
+	def get_in_progress_movies(self):
+		return self.execute('SELECT media_id, title, last_played FROM progress WHERE db_type = ?', ('movie',)).fetchall()
+
+	def get_in_progress_episodes(self):
+		return self.execute('SELECT media_id, season, episode, resume_point, last_played, title FROM progress WHERE db_type = ?', ('episode',)).fetchall()
+
+	def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
+		resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
+		last_played = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+		self.execute('INSERT OR REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+			(media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title))
+
+	def erase_bookmark(self, media_type, media_id, season=None, episode=None, refresh='false'):
+		self.execute('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', (media_type, media_id, season, episode))
+
+	def batch_erase_bookmark(self, insert_list, action=None):
+		self.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', insert_list)
+
+	def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
+		if action == 'mark_as_watched':
+			last_played = last_played or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+			self.execute('INSERT OR REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title))
+		elif action == 'mark_as_unwatched':
+			self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', (media_type, media_id, season, episode))
+
+	def batch_watched_status_mark(self, insert_list, action):
+		if action == 'mark_as_watched':
+			self.executemany('INSERT OR IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?)', insert_list)
+		elif action == 'mark_as_unwatched':
+			self.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ?)', insert_list)
+
+	def get_next_episodes(self, nextep_content=0):
+		if nextep_content == 0:
+			return self.execute('''WITH cte AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY season DESC, episode DESC) rn FROM watched WHERE db_type = ?)
+								SELECT media_id, season, episode, title, last_played FROM cte WHERE rn = 1''', ('episode',)).fetchall()
+		return self.execute('SELECT media_id, season, episode, title, MAX(last_played), COUNT(*) AS COUNTER FROM watched WHERE db_type = ? GROUP BY media_id', ('episode',)).fetchall()
+
+class PersonalListsSQLiteConnection(database.Connection):
+	"""Local SQLite personal lists database. Provides the same list methods as the MariaDB and API databases."""
+	def make_list(self, list_name, sort_order):
+		self.execute('INSERT OR REPLACE INTO personal_lists VALUES (?, ?, ?, ?, ?)', (list_name, repr([]), 0, get_timestamp(), sort_order))
+
+	def delete_list(self, list_name):
+		self.execute('DELETE FROM personal_lists WHERE name=?', (list_name,))
+		self.execute('VACUUM')
+
+	def clear_list_contents(self, list_name):
+		self.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr([]), '0', list_name))
+
+	def update_list_details(self, list_name, sort_order, original_name):
+		self.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=?', (list_name, sort_order, original_name))
+
+	def get_lists(self):
+		return self.execute('SELECT name, total, sort_order FROM personal_lists').fetchall()
+
+	def get_list(self, list_name):
+		return eval(self.execute('SELECT contents FROM personal_lists WHERE name=?', (list_name,)).fetchone()[0])
+
+	def _save_list(self, list_name, contents):
+		self.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr(contents), len(contents), list_name))
+
+	def add_list_item(self, list_name, item):
+		contents = self.get_list(list_name)
+		if str(item['media_id']) in [str(i['media_id']) for i in contents]: return False
+		contents.append(item)
+		self._save_list(list_name, contents)
+		return True
+
+	def remove_list_item(self, list_name, media_id):
+		contents = self.get_list(list_name)
+		new_contents = [i for i in contents if str(i['media_id']) != str(media_id)]
+		if len(new_contents) == len(contents): return False
+		self._save_list(list_name, new_contents)
+		return True
+
+	def add_many_list_items(self, list_name, items):
+		contents = self.get_list(list_name)
+		existing = set(str(i['media_id']) for i in contents)
+		contents.extend(i for i in items if str(i['media_id']) not in existing)
+		self._save_list(list_name, contents)

@@ -1,7 +1,6 @@
-from caches.base_cache import connect_database, get_timestamp
-from modules.settings import watch_history_profile_name, watched_indicators
+from caches.base_cache import connect_database
+from modules.settings import watched_indicators
 from modules.kodi_utils import logger
-import json
 
 def get_database(watched_indicator=None):
 	conn_db = connect_database({0: 'personal_lists_db', 1: 'trakt_db', 2: 'mariadb', 3: 'mariadb_api'}[watched_indicator])
@@ -10,197 +9,70 @@ def get_database(watched_indicator=None):
 
 class PersonalListsCache:
 	def make_list(self, list_name, sort_order):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				dbcon.execute('INSERT INTO personal_lists (name, contents, total, created, sort_order, profile) VALUES (?, ?, ?, ?, ?, ?)', (list_name, json.dumps([]), 0, get_timestamp(), sort_order, watch_history_profile_name()))
-				return True
-			except Exception as e:
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		if watched_indicators() == 3:
-			try:
-				dbcon.make_list(list_name, sort_order)
-				return True
-			except Exception as e:
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		else:
-			try:
-				dbcon.execute('INSERT OR REPLACE INTO personal_lists VALUES (?, ?, ?, ?, ?)', (list_name, repr([]), 0, get_timestamp(), sort_order))
-				return True
-			except: return False
+		try:
+			get_database(watched_indicators()).make_list(list_name, sort_order)
+			return True
+		except Exception as e:
+			logger('personal_lists_cache make_list', severity='medium', error_message=str(e))
+			return False
 
 	def delete_list(self, list_name):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				dbcon.execute('DELETE FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name()))
-				dbcon.execute('OPTIMIZE TABLE personal_lists')
-				return True
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		if watched_indicators() == 3:
-			try:
-				dbcon.delete_list(list_name)
-				return True
-			except Exception as e:
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		else:
-			try:
-				dbcon.execute('DELETE FROM personal_lists WHERE name=?', (list_name,))
-				dbcon.execute('VACUUM')
-				return True
-			except: return False
+		try:
+			get_database(watched_indicators()).delete_list(list_name)
+			return True
+		except Exception as e:
+			logger('personal_lists_cache delete_list', severity='medium', error_message=str(e))
+			return False
 
 	def delete_list_contents(self, list_name):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (json.dumps([]), '0', list_name, watch_history_profile_name()))
-				return True
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		if watched_indicators() == 3:
-			try:
-				dbcon.clear_list_contents(list_name)
-				return True
-			except Exception as e:
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		else:
-			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr([]), '0', list_name))
-				return True
-			except: return False
+		try:
+			get_database(watched_indicators()).clear_list_contents(list_name)
+			return True
+		except Exception as e:
+			logger('personal_lists_cache delete_list_contents', severity='medium', error_message=str(e))
+			return False
 
 	def update_list_details(self, list_name, sort_order, original_name):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				dbcon.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=? and profile=?', (list_name, sort_order, original_name, watch_history_profile_name()))
-				return True
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		if watched_indicators() == 3:
-			try:
-				dbcon.update_list_details(list_name, sort_order, original_name)
-				return True
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return False
-		else:
-			try:
-				dbcon.execute('UPDATE personal_lists SET name=?, sort_order=? WHERE name=?', (list_name, sort_order, original_name))
-				return True
-			except: return False
+		try:
+			get_database(watched_indicators()).update_list_details(list_name, sort_order, original_name)
+			return True
+		except Exception as e:
+			logger('personal_lists_cache update_list_details', severity='medium', error_message=str(e))
+			return False
 
 	def get_lists(self):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists WHERE profile=?', (watch_history_profile_name(),))
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return []
-		if watched_indicators() == 3:
-			try:
-				all_lists = dbcon.get_lists()
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return []
-		else:
-			try:
-				all_lists = dbcon.execute('SELECT name, total, sort_order FROM personal_lists').fetchall()
-			except: return []
+		try:
+			all_lists = get_database(watched_indicators()).get_lists()
+		except Exception as e:
+			logger('personal_lists_cache get_lists', severity='medium', error_message=str(e))
+			return []
 		return [{'name': str(i[0]), 'total': i[1], 'sort_order': i[2]} for i in all_lists]
 
 	def get_list(self, list_name, dbcon=None):
-		dbcon = get_database(watched_indicators())
-		if watched_indicators() == 2:
-			try:
-				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=? and profile=?', (list_name, watch_history_profile_name())).fetchone()[0])
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return []
-		if watched_indicators() == 3:
-			try:
-				return dbcon.get_list(list_name)
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return []
-		else:
-			try:
-				return eval(dbcon.execute('SELECT contents FROM personal_lists WHERE name=?', (list_name,)).fetchone()[0])
-			except: return []
+		try:
+			return (dbcon or get_database(watched_indicators())).get_list(list_name)
+		except Exception as e:
+			logger('personal_lists_cache get_list', severity='medium', error_message=str(e))
+			return []
 
 	def add_remove_list_item(self, action, new_contents, list_name):
-		dbcon = get_database(watched_indicators())
-		contents = self.get_list(list_name, dbcon)
 		try:
-			if watched_indicators() == 2:
-				if action == 'add':
-					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
-					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=? and profile=?'
-					contents.append(new_contents)
-				else:
-					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
-					command = 'UPDATE personal_lists SET contents=?, total=total-1 WHERE name=? and profile=?'
-					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
-				dbcon.execute(command, (json.dumps(contents), list_name, watch_history_profile_name()))
-				return 'Success'
-			elif watched_indicators() == 3:
-				if action == 'add':
-					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
-					contents.append(new_contents)
-				else:
-					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
-					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
-				dbcon.add_remove_list_item(action, json.dumps(contents), list_name)
-				return 'Success'
+			dbcon = get_database(watched_indicators())
+			if action == 'add':
+				if not dbcon.add_list_item(list_name, new_contents): return 'Item Already in [B]%s[/B]' % list_name
 			else:
-				if action == 'add':
-					if [str(i['media_id']) for i in contents if str(new_contents['media_id']) == str(i['media_id'])]: return 'Item Already in [B]%s[/B]' % list_name
-					command = 'UPDATE personal_lists SET contents=?, total=total+1 WHERE name=?'
-					contents.append(new_contents)
-				else:
-					if not [str(i['media_id']) for i in contents if str(new_contents) == str(i['media_id'])]: return 'Item Not in [B]%s[/B]' % list_name
-					command = 'UPDATE personal_lists SET contents=?, total=total-1 WHERE name=?'
-					contents = [i for i in contents if not str(i['media_id']) == str(new_contents)]
-				dbcon.execute(command, (repr(contents), list_name))
-				return 'Success'
+				if not dbcon.remove_list_item(list_name, new_contents): return 'Item Not in [B]%s[/B]' % list_name
+			return 'Success'
 		except Exception as e:
 			logger('personal_lists_cache', severity='medium', error_message=str(e))
 			return 'Error'
 
 	def add_many_list_items(self, new_contents, list_name):
-		dbcon = get_database(watched_indicators())
-		contents = self.get_list(list_name, dbcon)
-		compare_ids = [str(i['media_id']) for i in contents]
-		new_contents = [i for i in new_contents if str(i['media_id']) not in compare_ids]
-		contents.extend(new_contents)
-		if watched_indicators() == 2:
-			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=? and profile=?', (json.dumps(contents), len(contents), list_name, watch_history_profile_name()))
-				return 'Success'
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return 'Error'
-		if watched_indicators() == 3:
-			try:
-				dbcon.add_many_list_items(json.dumps(contents), len(contents), list_name)
-				return 'Success'
-			except Exception as e: 
-				logger('personal_lists_cache MariaDB', severity='medium', error_message=str(e))
-				return 'Error'
-		else:
-			try:
-				dbcon.execute('UPDATE personal_lists SET contents=?, total=? WHERE name=?', (repr(contents), len(contents), list_name))
-				return 'Success'
-			except: return 'Error'
+		try:
+			get_database(watched_indicators()).add_many_list_items(list_name, new_contents)
+			return 'Success'
+		except Exception as e:
+			logger('personal_lists_cache add_many_list_items', severity='medium', error_message=str(e))
+			return 'Error'
 
 personal_lists_cache = PersonalListsCache()

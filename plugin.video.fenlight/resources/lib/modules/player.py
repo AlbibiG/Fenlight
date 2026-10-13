@@ -98,7 +98,7 @@ class FenLightPlayer(xbmc.Player):
             try: self.total_time, self.curr_time = self.getTotalTime(), self.getTime()
             except: self.total_time, self.curr_time = 0, 0
             if st.watched_indicators() not in (0, 1):
-                media_started = format_timestamp(offset=st.date_offset())
+                media_started = format_timestamp(offset=st.utc_offset())
                 params = self.create_params({'started' : media_started})
                 history_worker = ws.PlaybackHistoryWorker(params)
             ku.hide_busy_dialog()

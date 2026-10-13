@@ -34,7 +34,7 @@ def hide_unhide_progress_items(params):
 	if refresh: kodi_refresh()
 
 def get_last_played_value(watched_indicators):
-	return format_timestamp(offset=settings.date_offset())
+	return format_timestamp(offset=settings.utc_offset())
 
 def make_batch_insert(action, media_type, media_id, season, episode, last_played, title):
 	if action == 'mark_as_watched': return (media_type, media_id, season, episode, last_played, title)
@@ -106,7 +106,7 @@ def record_historical_playback_stop(params):
 			episode=episode, 
 			title=title,
 			started=started,
-			ended=format_timestamp(offset=settings.date_offset()),
+			ended=format_timestamp(offset=settings.utc_offset()),
 			play_event=play_event, 
 			resume_point=resume_point, 
 			curr_time=curr_time, 

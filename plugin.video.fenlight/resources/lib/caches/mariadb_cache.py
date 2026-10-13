@@ -1,12 +1,12 @@
 import threading
 from ast import literal_eval
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pymysql
 import xbmc
 from caches.base_cache import SQLDatabaseWrapper
-from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name
+from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name, utc_offset
 from modules.utils import format_timestamp
 
 _pool = None
@@ -92,8 +92,8 @@ def _log_error(message):
 
 
 def to_sql_timestamp(value):
-    """Convert an ISO string, epoch value or datetime to a UTC 'YYYY-MM-DD HH:MM:SS' string for TIMESTAMP columns.
-    Values without timezone info are treated as local time. Connections use time_zone '+00:00' so MariaDB stores them as-is."""
+    """Convert an ISO string, epoch value or datetime to a 'YYYY-MM-DD HH:MM:SS' string in Kodi's local time for TIMESTAMP columns.
+    Values without timezone info are already local. Connections use time_zone '+00:00' so MariaDB stores them unshifted."""
     if value in (None, ''):
         return None
     if isinstance(value, datetime):
@@ -107,7 +107,15 @@ def to_sql_timestamp(value):
                 dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
         except (ValueError, OverflowError, OSError):
             return None
-    return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone(timedelta(hours=utc_offset()))).replace(tzinfo=None)
+    return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def utc_offset_label():
+    """Current Kodi UTC offset as '+HH:MM', stored alongside timestamps in the utc_offset columns"""
+    minutes = round(utc_offset() * 60)
+    return '%s%02d:%02d' % ('-' if minutes < 0 else '+', abs(minutes) // 60, abs(minutes) % 60)
 
 
 def get_connection_config():
@@ -148,6 +156,7 @@ def initialize_history_database():
                     resume_point text,
                     curr_time text,
                     last_played timestamp NULL DEFAULT NULL,
+                    utc_offset varchar(6),
                     resume_id integer,
                     title text,
                     profile text,
@@ -164,6 +173,7 @@ def initialize_history_database():
                     curr_time text,
                     started timestamp NULL DEFAULT NULL,
                     ended timestamp NULL DEFAULT NULL,
+                    utc_offset varchar(6),
                     resume_id integer,
                     play_event text,
                     title text,
@@ -178,6 +188,7 @@ def initialize_history_database():
                     season integer,
                     episode integer,
                     last_played timestamp NULL DEFAULT NULL,
+                    utc_offset varchar(6),
                     title text,
                     profile text,
                     unique (db_type, media_id, season, episode, profile)
@@ -196,6 +207,7 @@ def initialize_history_database():
                 CREATE TABLE IF NOT EXISTS personal_lists (
                     name text,
                     created timestamp NULL DEFAULT NULL,
+                    utc_offset varchar(6),
                     sort_order integer,
                     profile text,
                     unique(name, profile)
@@ -209,6 +221,7 @@ def initialize_history_database():
                     media_type varchar(16) not null,
                     title text,
                     date_added timestamp NULL DEFAULT NULL,
+                    utc_offset varchar(6),
                     release_date text,
                     unique (profile, list_name, media_id, media_type)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -239,6 +252,18 @@ def initialize_history_database():
                     cursor.execute("UPDATE %s SET %s = NULL WHERE %s NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'"
                         % (table_name, column_name, column_name))
                 cursor.execute('ALTER TABLE %s MODIFY COLUMN %s timestamp NULL DEFAULT NULL' % (table_name, column_name))
+            # utc_offset records the Kodi timezone each timestamp was written in, placed after the table's last timestamp column
+            utc_offset_columns = (
+                ('progress', 'last_played'),
+                ('historical', 'ended'),
+                ('watched', 'last_played'),
+                ('personal_lists', 'created'),
+                ('personal_list_items', 'date_added')
+            )
+            for table_name, after_column in utc_offset_columns:
+                cursor.execute('SHOW COLUMNS FROM %s' % table_name)
+                if 'utc_offset' not in {row[0].lower() for row in cursor.fetchall()}:
+                    cursor.execute('ALTER TABLE %s ADD COLUMN utc_offset varchar(6) AFTER %s' % (table_name, after_column))
         conn.commit()
         return True
     except Exception as exc:
@@ -261,7 +286,7 @@ def reconfigure_history_database():
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
-                'last_played': 'timestamp NULL DEFAULT NULL', 'resume_id': 'integer',
+                'last_played': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'resume_id': 'integer',
                 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
@@ -271,7 +296,7 @@ def reconfigure_history_database():
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
-                'started': 'timestamp NULL DEFAULT NULL', 'ended': 'timestamp NULL DEFAULT NULL', 'resume_id': 'integer',
+                'started': 'timestamp NULL DEFAULT NULL', 'ended': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'resume_id': 'integer',
                 'play_event': 'text', 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'started', 'play_event']
@@ -280,7 +305,7 @@ def reconfigure_history_database():
             'columns': {
                 'db_type': 'text not null', 'media_id': 'text not null',
                 'season': 'integer', 'episode': 'integer',
-                'last_played': 'timestamp NULL DEFAULT NULL', 'title': 'text', 'profile': 'text'
+                'last_played': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'title': 'text', 'profile': 'text'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
         },
@@ -293,7 +318,7 @@ def reconfigure_history_database():
         },
         'personal_lists': {
             'columns': {
-                'name': 'text', 'created': 'timestamp NULL DEFAULT NULL', 'sort_order': 'integer', 'profile': 'text'
+                'name': 'text', 'created': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'sort_order': 'integer', 'profile': 'text'
             },
             'unique': ['name', 'profile']
         },
@@ -301,7 +326,7 @@ def reconfigure_history_database():
             'columns': {
                 'profile': 'varchar(191) not null', 'list_name': 'varchar(191) not null',
                 'media_id': 'varchar(64) not null', 'media_type': 'varchar(16) not null',
-                'title': 'text', 'date_added': 'timestamp NULL DEFAULT NULL', 'release_date': 'text'
+                'title': 'text', 'date_added': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'release_date': 'text'
             },
             'unique': ['profile', 'list_name', 'media_id', 'media_type']
         }
@@ -374,16 +399,16 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         started, ended = to_sql_timestamp(started), to_sql_timestamp(ended)
         if play_event == 'started':
             self.execute('''INSERT IGNORE INTO historical
-                        (db_type, media_id, season, episode, resume_point, curr_time, started, ended, play_event, resume_id, title, profile)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                        (media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, play_event, int(resume_id), title, profile))
+                        (db_type, media_id, season, episode, resume_point, curr_time, started, ended, utc_offset, play_event, resume_id, title, profile)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                        (media_type, media_id, season, episode, str(resume_point), str(curr_time), started, ended, utc_offset_label(), play_event, int(resume_id), title, profile))
         else:
             self.execute('''UPDATE historical
-                        SET resume_point = ?, curr_time = ?, ended = ?, resume_id = ?, title = ?, play_event = ?
+                        SET resume_point = ?, curr_time = ?, ended = ?, utc_offset = ?, resume_id = ?, title = ?, play_event = ?
                         WHERE db_type = ? AND media_id = ? AND season IS ? AND episode IS ? AND profile = ? AND started = ?
                         ORDER BY started DESC
                         LIMIT 1''',
-                        (str(resume_point), str(curr_time), ended, int(resume_id), title, play_event,
+                        (str(resume_point), str(curr_time), ended, utc_offset_label(), int(resume_id), title, play_event,
                         media_type, media_id, season, episode, profile, started))
 
     def get_watched_movies(self):
@@ -441,8 +466,9 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
         resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
         last_played = to_sql_timestamp(format_timestamp())
-        self.execute('REPLACE INTO progress VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, 0, title, watch_history_profile_name()))
+        self.execute('REPLACE INTO progress (db_type, media_id, season, episode, resume_point, curr_time, last_played, utc_offset, resume_id, title, profile) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, utc_offset_label(), 0, title, watch_history_profile_name()))
 
     def erase_bookmark(self, media_type, media_id, season=None, episode=None, refresh='false'):
         self.execute('DELETE FROM progress where db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?',
@@ -457,7 +483,8 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         if action == 'mark_as_watched':
             last_played = to_sql_timestamp(last_played or format_timestamp())
-            self.execute('REPLACE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', (media_type, media_id, season, episode, last_played, title, profile_name))
+            self.execute('REPLACE INTO watched (db_type, media_id, season, episode, last_played, utc_offset, title, profile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                (media_type, media_id, season, episode, last_played, utc_offset_label(), title, profile_name))
         elif action == 'mark_as_unwatched':
             self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
 
@@ -465,8 +492,9 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         params = [item + (profile_name,) for item in insert_list]
         if action == 'mark_as_watched':
-            params = [i[:4] + (to_sql_timestamp(i[4]),) + i[5:] for i in params]
-            self.executemany('INSERT IGNORE INTO watched VALUES (?, ?, ?, ?, ?, ?, ?)', params)
+            offset = utc_offset_label()
+            params = [i[:4] + (to_sql_timestamp(i[4]), offset) + i[5:] for i in params]
+            self.executemany('INSERT IGNORE INTO watched (db_type, media_id, season, episode, last_played, utc_offset, title, profile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', params)
         elif action == 'mark_as_unwatched':
             self.executemany('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', params)
 
@@ -479,8 +507,8 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             ('episode', profile_name)).fetchall()
 
     def make_list(self, list_name, sort_order):
-        self.execute('INSERT INTO personal_lists (name, created, sort_order, profile) VALUES (?, ?, ?, ?)',
-            (list_name, to_sql_timestamp(format_timestamp()), sort_order, watch_history_profile_name()))
+        self.execute('INSERT INTO personal_lists (name, created, utc_offset, sort_order, profile) VALUES (?, ?, ?, ?, ?)',
+            (list_name, to_sql_timestamp(format_timestamp()), utc_offset_label(), sort_order, watch_history_profile_name()))
 
     def delete_list(self, list_name):
         profile = watch_history_profile_name()
@@ -518,10 +546,10 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         media_type = item.get('media_type') or item.get('type')
         return self.execute(
             'INSERT IGNORE INTO personal_list_items '
-            '(profile, list_name, media_id, media_type, title, date_added, release_date) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            '(profile, list_name, media_id, media_type, title, date_added, utc_offset, release_date) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (watch_history_profile_name(), list_name, str(item['media_id']), media_type,
-             item.get('title'), to_sql_timestamp(item.get('date_added')), item.get('release_date'))
+             item.get('title'), to_sql_timestamp(item.get('date_added')), utc_offset_label(), item.get('release_date'))
         ).rowcount > 0
 
     def remove_list_item(self, list_name, media_id):
@@ -534,13 +562,14 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile = watch_history_profile_name()
         if not items:
             return
+        offset = utc_offset_label()
         self.executemany(
             'INSERT IGNORE INTO personal_list_items '
-            '(profile, list_name, media_id, media_type, title, date_added, release_date) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?)',
+            '(profile, list_name, media_id, media_type, title, date_added, utc_offset, release_date) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             [
                 (profile, list_name, str(item['media_id']), item.get('media_type') or item.get('type'),
-                 item.get('title'), to_sql_timestamp(item.get('date_added')), item.get('release_date'))
+                 item.get('title'), to_sql_timestamp(item.get('date_added')), offset, item.get('release_date'))
                 for item in items
             ]
         )

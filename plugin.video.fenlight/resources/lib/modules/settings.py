@@ -1,5 +1,5 @@
 from caches.settings_cache import get_setting, set_setting, default_setting_values
-from modules.kodi_utils import translate_path, get_property
+from modules.kodi_utils import translate_path, get_property, kodi_utc_offset
 
 def tmdb_api_key():
 	return get_setting('fenlight.tmdb_api', '7025e94b6ec71625d06ff4d38a9f9727')
@@ -322,8 +322,13 @@ def widget_hide_watched():
 def calendar_sort_order():
 	return int(get_setting('fenlight.trakt.calendar_sort_order', '0'))
 
+def utc_offset():
+	offset = kodi_utc_offset()
+	if offset is None: offset = int(get_setting('fenlight.datetime.offset', '0'))
+	return offset
+
 def date_offset():
-	return int(get_setting('fenlight.datetime.offset', '0')) + 5
+	return utc_offset() + 5
 
 def media_open_action(media_type):
 	return int(get_setting('fenlight.media_open_action_%s' % media_type, '0'))

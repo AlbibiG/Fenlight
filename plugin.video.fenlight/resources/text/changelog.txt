@@ -1,4 +1,4 @@
-﻿[COLOR dodgerblue][B]Version 1.1.27[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.28[/B][/COLOR]
 - [BUG] Fixed build_next_episode_manager to include MariaDB.
 - [BUG] Fixed autoplay of queue after movie.
 - [BUG] Fixed autoplay not working if skipping to end.

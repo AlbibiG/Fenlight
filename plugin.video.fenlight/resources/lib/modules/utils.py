@@ -10,7 +10,7 @@ from queue import SimpleQueue
 from threading import Thread, activeCount
 from importlib import import_module
 from datetime import datetime, timedelta, date, timezone
-from modules.settings import max_threads
+from modules.settings import max_threads, utc_offset
 from modules.kodi_utils import sleep
 from modules.kodi_utils import logger
 
@@ -108,7 +108,27 @@ def get_current_timestamp():
 def format_timestamp(timestamp=None, offset=0):
 	if timestamp is None: timestamp = get_current_timestamp()
 	return datetime.fromtimestamp(timestamp, timezone(timedelta(hours=offset))).isoformat(timespec='milliseconds')
-	
+
+def to_sql_timestamp(value):
+	"""Convert an ISO string, epoch value or datetime to a 'YYYY-MM-DD HH:MM:SS' string in Kodi's local time for the watch history TIMESTAMP columns.
+	Values without timezone info are already local. MariaDB connections use time_zone '+00:00' so the value is stored unshifted."""
+	if value in (None, ''): return None
+	if isinstance(value, datetime): dt = value
+	else:
+		value = str(value).strip()
+		try:
+			if value.isdigit(): dt = datetime.fromtimestamp(int(value), timezone.utc)
+			else: dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+		except (ValueError, OverflowError, OSError): return None
+	if dt.tzinfo is not None:
+		dt =dt.astimezone(timezone(timedelta(hours=utc_offset()))).replace(tzinfo=None)
+	return dt.strftime('%Y-%m-%d %H:%M:%S')
+
+def utc_offset_label():
+	"""Current Kodi UTC offset as '+HH:MM', stored alongside timestamps in the watch history utc_offset columns"""
+	minutes = round(utc_offset() * 60)
+	return '%s%02d:%02d' % ('-' if minutes < 0 else '+', abs(minutes) // 60, abs(minutes) % 60)
+
 def adjust_premiered_date(orig_date, adjust_hours):
 	if not orig_date: return None, None
 	orig_date += ' 20:00:00'

@@ -1,13 +1,12 @@
 import threading
 from ast import literal_eval
 from collections import deque
-from datetime import datetime, timedelta, timezone
 
 import pymysql
 import xbmc
 from caches.base_cache import SQLDatabaseWrapper
-from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name, utc_offset
-from modules.utils import format_timestamp
+from modules.settings import watch_history_server_ip, watch_history_port, watch_history_username, watch_history_password, watch_history_database_name, watch_history_profile_name
+from modules.utils import format_timestamp, to_sql_timestamp, utc_offset_label
 
 _pool = None
 _pool_lock = threading.Lock()
@@ -89,33 +88,6 @@ def _log_error(message):
             print(message)
     except Exception:
         pass
-
-
-def to_sql_timestamp(value):
-    """Convert an ISO string, epoch value or datetime to a 'YYYY-MM-DD HH:MM:SS' string in Kodi's local time for TIMESTAMP columns.
-    Values without timezone info are already local. Connections use time_zone '+00:00' so MariaDB stores them unshifted."""
-    if value in (None, ''):
-        return None
-    if isinstance(value, datetime):
-        dt = value
-    else:
-        value = str(value).strip()
-        try:
-            if value.isdigit():
-                dt = datetime.fromtimestamp(int(value), timezone.utc)
-            else:
-                dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
-        except (ValueError, OverflowError, OSError):
-            return None
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone(timedelta(hours=utc_offset()))).replace(tzinfo=None)
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
-
-
-def utc_offset_label():
-    """Current Kodi UTC offset as '+HH:MM', stored alongside timestamps in the utc_offset columns"""
-    minutes = round(utc_offset() * 60)
-    return '%s%02d:%02d' % ('-' if minutes < 0 else '+', abs(minutes) // 60, abs(minutes) % 60)
 
 
 def get_connection_config():

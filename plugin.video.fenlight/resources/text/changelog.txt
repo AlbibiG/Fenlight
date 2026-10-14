@@ -1,16 +1,19 @@
-﻿[COLOR dodgerblue][B]Version 1.1.28[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.29[/B][/COLOR]
+- [BUG] Fixed current_point for media_watched_marker when skipping to end.
+
+[COLOR dodgerblue][B]Version 1.1.28[/B][/COLOR]
 - [BUG] Fixed build_next_episode_manager to include MariaDB.
 - [BUG] Fixed autoplay of queue after movie.
 - [BUG] Fixed autoplay not working if skipping to end.
 
-[COLOR dodgerblue][B]Version 1.1.19-1.1.26[/B][/COLOR]
+[COLOR dodgerblue][B]Version 1.1.19 - 1.1.27[/B][/COLOR]
 - [CODE] Convert date strings to timestamp for SQL. Uses UTC.
 - [BUG] Fix circular import.
 - [BUG] Fix timestamp from hardcoded 5.
 - [CODE] Included UTC offset in MariaDB tables.
 - [CODE] Uses Kodi's internal clock to set time for tables.
 
-[COLOR dodgerblue][B]Version 1.1.16-1.1.18[/B][/COLOR]
+[COLOR dodgerblue][B]Version 1.1.16 - 1.1.18[/B][/COLOR]
 - [CODE] Removed all JSON fields from MariaDB tables.
 
 [COLOR dodgerblue][B]Version 1.1.15[/B][/COLOR]

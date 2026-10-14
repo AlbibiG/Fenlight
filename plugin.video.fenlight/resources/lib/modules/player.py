@@ -131,7 +131,9 @@ class FenLightPlayer(xbmc.Player):
                         if round(self.total_time - self.curr_time) <= self.start_prep: self.run_next_ep(); break
                 except: pass
             # playback reached the end before the next item was prepared (e.g. the user skipped to the end)
-            if not self.nextep_started and (self.autoplay_nextep or self.autoscrape_nextep) and self.wait_for_playback_end():
+            playback_ended = not self.nextep_started and self.wait_for_playback_end()
+            if playback_ended: self.current_point = 100.0
+            if playback_ended and (self.autoplay_nextep or self.autoscrape_nextep):
                 if not self.nextep_info_gathered: self.info_next_ep()
                 self.run_next_ep()
             ku.hide_busy_dialog()
@@ -301,6 +303,7 @@ class FenLightPlayer(xbmc.Player):
             self.meta_get, self.kodi_monitor, self.playback_percent = self.meta.get, ku.kodi_monitor(), self.sources_object.playback_percent or 0.0
             self.playing_filename = self.sources_object.playing_filename
             self.media_marked, self.nextep_info_gathered, self.nextep_started = False, False, False
+            self.current_point = 0.0
             self.playback_successful, self.cancel_all_playback = None, False
             self.playing_item = self.sources_object.playing_item
 

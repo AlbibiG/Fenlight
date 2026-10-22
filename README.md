@@ -65,7 +65,7 @@ If the API can't be reached, for example while its container restarts, Fen Light
 
 ### API keys
 
-Give each Kodi device its own key, so you can lock one device out without changing the others. Manage them with `fenlight-api-keys` on the API's container or VM, as root:
+Give each Kodi device its own key, so you can lock one device out without changing the others. Keys can also be shared across devices. Manage them with `fenlight-api-keys` on the API's container or VM, as root:
 
 ```bash
 fenlight-api-keys                                   # list every key with its name

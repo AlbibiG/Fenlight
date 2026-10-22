@@ -3,8 +3,9 @@
 # Run from the directory containing the app's *.py files and requirements.txt
 # (the self-extracting installer built by build.sh does this for you).
 #
-# Usage: install.sh [--reconfigure]
-#   Running it again updates the app and keeps the settings; --reconfigure asks for them again.
+# Usage: install.sh [--reconfigure] [--new-key]
+#   Running it again updates the app and keeps the settings; --reconfigure asks for them again
+#   and --new-key replaces the API key.
 #
 # Settings may be passed as environment variables; any that are missing are asked for:
 #   DB_HOST, FENLIGHT_DB_USER, FENLIGHT_DB_PASS   MariaDB login (required)
@@ -29,9 +30,10 @@ die() { printf '\033[1;31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
 usage() {
     cat <<'EOF'
-Usage: bash fenlight-api-installer.sh [--reconfigure]
-       curl -fsSL <installer URL> | bash -s -- [--reconfigure]
-Running it again updates the API and keeps its settings; --reconfigure asks for them again.
+Usage: bash fenlight-api-installer.sh [--reconfigure] [--new-key]
+       curl -fsSL <installer URL> | bash -s -- [--reconfigure] [--new-key]
+Running it again updates the API and keeps its settings. --reconfigure asks for them again;
+--new-key replaces the API key (with API_SECRET_KEY if given, otherwise a random one).
 Settings can also be passed as environment variables: DB_HOST, DB_PORT, FENLIGHT_DB_USER,
 FENLIGHT_DB_PASS, API_SECRET_KEY, API_PORT, INSTALL_DIR and SERVICE_NAME.
 EOF
@@ -70,6 +72,22 @@ env_get() {
         value="$(printf '%s' "${value:1:${#value}-2}" | sed 's/\\\([\\"`$]\)/\1/g')"
     fi
     printf '%s' "$value"
+}
+
+# new_key: a random API key
+new_key() { python3 -c 'import secrets; print(secrets.token_urlsafe(32))'; }
+
+# write_env: save the settings to $ENV_FILE, readable only by root
+write_env() {
+    mkdir -p "$ENV_DIR"
+    (umask 077
+     { env_line DB_HOST "$DB_HOST"
+       env_line DB_PORT "$DB_PORT"
+       env_line FENLIGHT_DB_USER "$FENLIGHT_DB_USER"
+       env_line FENLIGHT_DB_PASS "$FENLIGHT_DB_PASS"
+       env_line API_SECRET_KEY "$API_SECRET_KEY"
+       env_line API_PORT "$API_PORT"
+     } >"$ENV_FILE")
 }
 
 # apt passes dpkg's error messages through its normal output, so keep all of it in a log and show its end on failure
@@ -129,21 +147,21 @@ configure() {
 
     API_PORT="${API_PORT:-${cur_api_port:-8000}}"
     [[ "$API_PORT" =~ ^[0-9]+$ ]] || die "API_PORT must be a number, not '${API_PORT}'"
-    API_SECRET_KEY="${API_SECRET_KEY:-$cur_key}"
-    if [[ -z "$API_SECRET_KEY" ]]; then
-        API_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-        NEW_KEY=1
-    fi
+    # keep the current key unless one was given or --new-key asked for a new one
+    if [[ -z "${API_SECRET_KEY:-}" && -z "$ROTATE_KEY" ]]; then API_SECRET_KEY="$cur_key"; fi
+    API_SECRET_KEY="${API_SECRET_KEY:-$(new_key)}"
+    [[ "$API_SECRET_KEY" == "$cur_key" ]] || NEW_KEY=1
+    write_env
+}
 
-    mkdir -p "$ENV_DIR"
-    (umask 077
-     { env_line DB_HOST "$DB_HOST"
-       env_line DB_PORT "$DB_PORT"
-       env_line FENLIGHT_DB_USER "$FENLIGHT_DB_USER"
-       env_line FENLIGHT_DB_PASS "$FENLIGHT_DB_PASS"
-       env_line API_SECRET_KEY "$API_SECRET_KEY"
-       env_line API_PORT "$API_PORT"
-     } >"$ENV_FILE")
+# replace_key: give an existing install a new API key (API_SECRET_KEY if given) and keep its other settings
+replace_key() {
+    DB_HOST="$(env_get DB_HOST)"; DB_PORT="$(env_get DB_PORT)"; DB_PORT="${DB_PORT:-3306}"
+    FENLIGHT_DB_USER="$(env_get FENLIGHT_DB_USER)"; FENLIGHT_DB_PASS="$(env_get FENLIGHT_DB_PASS)"
+    API_PORT="$(env_get API_PORT)"; API_PORT="${API_PORT:-8000}"
+    API_SECRET_KEY="${API_SECRET_KEY:-$(new_key)}"
+    NEW_KEY=1
+    write_env
 }
 
 # api_health: the HTTP status of the API's /health check, or 000 while nothing answers yet
@@ -157,13 +175,15 @@ except urllib.error.HTTPError as exc:
 PY
 }
 
-RECONFIGURE=""
-case "${1:-}" in
-    "") ;;
-    --reconfigure) RECONFIGURE=1 ;;
-    -h|--help) usage; exit 0 ;;
-    *) usage >&2; die "unknown option '$1'" ;;
-esac
+RECONFIGURE="" ROTATE_KEY=""
+for arg in "$@"; do
+    case "$arg" in
+        --reconfigure) RECONFIGURE=1 ;;
+        --new-key) ROTATE_KEY=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) usage >&2; die "unknown option '$arg'" ;;
+    esac
+done
 
 [[ $EUID -eq 0 ]] || die "run as root"
 command -v apt-get >/dev/null || die "only Debian and Ubuntu (apt) systems are supported"
@@ -196,6 +216,10 @@ if [[ -f "$ENV_FILE" && -z "$RECONFIGURE" ]]; then
     log "Keeping the existing settings in ${ENV_FILE} (run with --reconfigure to change them)"
     API_PORT="$(env_get API_PORT)"
     API_PORT="${API_PORT:-8000}"
+    if [[ -n "$ROTATE_KEY" ]]; then
+        log "Replacing the API key"
+        replace_key
+    fi
 else
     log "Configuring"
     configure
@@ -242,9 +266,9 @@ if [[ "$status" == 200 ]]; then
     log "Done. The API is running at http://${ip:-<IP address>}:${API_PORT}"
     echo "    In Fen Light, set Watched Status Provider to 'MariaDB API' and External Host to that address."
     if [[ -n "$NEW_KEY" ]]; then
-        echo "    API Key (generated): ${API_SECRET_KEY}"
+        echo "    API Key (new, so enter it in Fen Light on every device): ${API_SECRET_KEY}"
     else
-        echo "    API Key: API_SECRET_KEY in ${ENV_FILE}"
+        echo "    API Key: unchanged (API_SECRET_KEY in ${ENV_FILE})"
     fi
     echo "    Logs: journalctl -u ${SERVICE_NAME} -f"
     exit 0

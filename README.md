@@ -61,6 +61,7 @@ In Fen Light's settings, under **Watched Indicators**, set **Watched Status Prov
 
 - **Update:** run the install command again. It keeps your settings.
 - **Change settings:** add `--reconfigure`, as in `curl -fsSL <installer URL> | bash -s -- --reconfigure`. Or edit `/etc/fenlight-api/api.env` and run `systemctl restart fenlight-api`.
+- **New API key**, for example if the old one leaked: add `--new-key`, as in `curl -fsSL <installer URL> | bash -s -- --new-key`. The installer prints the new key, and the old one stops working right away, so update **API Key** in Fen Light on every device. To choose the key yourself, put `API_SECRET_KEY='your-key'` just before `bash`.
 - **Remove:**
 
   ```bash

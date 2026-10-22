@@ -20,6 +20,9 @@ plugin.video.fenlight/resources/lib/*
 !plugin.video.fenlight/resources/lib/modules/
 plugin.video.fenlight/resources/lib/modules/*
 !plugin.video.fenlight/resources/lib/modules/playback_queue.py
+!plugin.video.fenlight/resources/lib/apis/
+plugin.video.fenlight/resources/lib/apis/*
+!plugin.video.fenlight/resources/lib/apis/mariadb_api.py
 lib64/
 parts/
 sdist/

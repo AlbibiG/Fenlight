@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, Any, Union
 import mysql.connector
+from mysql.connector import errorcode
 import os
 import json
 import ast
@@ -16,6 +18,7 @@ _initialized_databases = set()
 _database_initialization_lock = threading.Lock()
 
 DB_HOST = os.environ["DB_HOST"]
+DB_PORT = int(os.environ.get("DB_PORT", "3306"))
 BACKEND_DB_USER = os.environ["FENLIGHT_DB_USER"]
 BACKEND_DB_PASS = os.environ["FENLIGHT_DB_PASS"]
 
@@ -330,13 +333,28 @@ def initialize_database(conn, target_database: str):
         finally:
             cursor.close()
 
+def _connection_error(error, target_database):
+    """Explain a failed MariaDB login in terms the Fen Light user can act on, and log it to the journal"""
+    if error.errno == errorcode.ER_BAD_DB_ERROR:
+        status_code, detail = 404, "Database %r does not exist on the MariaDB server. Create it, or fix the Database setting in Fen Light" % target_database
+    elif error.errno == errorcode.ER_DBACCESS_DENIED_ERROR:
+        status_code, detail = 404, "MariaDB user %r has no access to database %r. Check the Database setting in Fen Light, or grant the user access" % (BACKEND_DB_USER, target_database)
+    else:
+        status_code, detail = 503, "Cannot log in to MariaDB at %s:%s: %s" % (DB_HOST, DB_PORT, error)
+    logger.error(detail)
+    return HTTPException(status_code=status_code, detail=detail)
+
 def get_db_connection(target_database: str):
-    conn = mysql.connector.connect(
-        host=DB_HOST,
-        user=BACKEND_DB_USER,
-        password=BACKEND_DB_PASS,
-        database=target_database
-    )
+    try:
+        conn = mysql.connector.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=BACKEND_DB_USER,
+            password=BACKEND_DB_PASS,
+            database=target_database
+        )
+    except mysql.connector.Error as e:
+        raise _connection_error(e, target_database) from e
     try:
         cursor = conn.cursor()
         # store TIMESTAMP values exactly as the Fenlight client sent them, without MariaDB shifting them
@@ -344,12 +362,18 @@ def get_db_connection(target_database: str):
         cursor.execute("SET time_zone = '+00:00'")
         cursor.close()
         initialize_database(conn, target_database)
+    except mysql.connector.Error as e:
+        conn.close()
+        detail = "Could not set up the Fen Light tables in database %r: %s" % (target_database, e)
+        logger.error(detail)
+        raise HTTPException(status_code=500, detail=detail) from e
     except Exception:
         conn.close()
         raise
     return conn
 
 def get_db(
+    request: Request,
     authorized: bool = Depends(verify_client_api_key),
     target_database: str = Header(..., alias="X-Database-Name")
     ):
@@ -358,26 +382,26 @@ def get_db(
     try:
         yield conn, cursor
     except mysql.connector.Error as e:
-        conn.rollback()
+        logger.error("%s %s failed in database %r: %s", request.method, request.url.path, target_database, e)
+        try:
+            conn.rollback()
+        except mysql.connector.Error:
+            pass  # the connection is already gone, so there is nothing to roll back
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     finally:
         cursor.close()
         conn.close()
 
-def get_db_plain(
-    authorized: bool = Depends(verify_client_api_key),
-    target_database: str = Header(..., alias="X-Database-Name")
-    ):
-    conn = get_db_connection(target_database)
-    cursor = conn.cursor(dictionary=False)
+@router.get("/health", include_in_schema=False)
+def health():
+    """Unauthenticated check for the installer and uptime monitors: is the API up, and can it log in to MariaDB?"""
     try:
-        yield conn, cursor
+        mysql.connector.connect(host=DB_HOST, port=DB_PORT, user=BACKEND_DB_USER, password=BACKEND_DB_PASS,
+                                connection_timeout=5).close()
     except mysql.connector.Error as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
+        logger.error("Health check cannot log in to MariaDB at %s:%s: %s", DB_HOST, DB_PORT, e)
+        return JSONResponse(status_code=503, content={"status": "error", "database": "unreachable"})
+    return {"status": "ok", "database": "ok"}
 
 class PlayRecordRequest(BaseModel):
     media_type: str
@@ -442,7 +466,7 @@ class BatchWatchStatusRequest(BaseModel):
     profile: Optional[str] = None
 
 @router.post("/api/history/record")
-def record_historical_play(data: PlayRecordRequest, db = Depends(get_db_plain)):
+def record_historical_play(data: PlayRecordRequest, db = Depends(get_db)):
     conn, cursor = db
     utc_offset = require_utc_offset(data.utc_offset)
     started = to_sql_timestamp(require(data.started, 'started'), utc_offset)
@@ -486,7 +510,7 @@ def get_hidden_progress_items(profile: str = Query(..., description="The watch p
     return row[0] if row else None
 
 @router.post("/api/hidden/progress/update")
-def update_hidden_progress_items(data: HideProgressRequest, db = Depends(get_db_plain)):
+def update_hidden_progress_items(data: HideProgressRequest, db = Depends(get_db)):
     conn, cursor = db
     cursor.execute(
         'SELECT status FROM watched_status WHERE db_type = %s AND profile = %s',
@@ -599,7 +623,7 @@ def get_bookmarks_episode(
     return info
 
 @router.post("/api/bookmarks/erase")
-def erase_bookmark(data: EraseBookmarkRequest, db = Depends(get_db_plain)):
+def erase_bookmark(data: EraseBookmarkRequest, db = Depends(get_db)):
     conn, cursor = db
     cursor.execute(
         'DELETE FROM progress WHERE db_type = %s AND media_id = %s AND season <=> %s AND episode <=> %s AND profile <=> %s',
@@ -609,7 +633,7 @@ def erase_bookmark(data: EraseBookmarkRequest, db = Depends(get_db_plain)):
     return {"status": "success"}
 
 @router.post("/api/bookmarks/batch-erase")
-def batch_erase_bookmark(data: BatchEraseBookmarkRequest, db = Depends(get_db_plain)):
+def batch_erase_bookmark(data: BatchEraseBookmarkRequest, db = Depends(get_db)):
     conn, cursor = db
     # JSON sends rows as lists, so convert them to tuples before adding the profile
     params = [tuple(item[:4]) + (data.profile,) for item in data.insert_list]
@@ -622,7 +646,7 @@ def batch_erase_bookmark(data: BatchEraseBookmarkRequest, db = Depends(get_db_pl
     return {"status": "success"}
 
 @router.post("/api/bookmarks/set")
-def set_bookmark(data: SetBookmarkRequest, db = Depends(get_db_plain)):
+def set_bookmark(data: SetBookmarkRequest, db = Depends(get_db)):
     conn, cursor = db
     adjusted_current_time = float(data.curr_time) - 5
     resume_point = round(adjusted_current_time / float(data.total_time) * 100, 1)
@@ -644,7 +668,7 @@ def set_bookmark(data: SetBookmarkRequest, db = Depends(get_db_plain)):
     return {"status": "success"}
 
 @router.post("/api/watched/status")
-def watched_status_mark(data: WatchStatusRequest, db = Depends(get_db_plain)):
+def watched_status_mark(data: WatchStatusRequest, db = Depends(get_db)):
     conn, cursor = db
 
     if data.action == 'mark_as_watched':
@@ -676,7 +700,7 @@ def watched_status_mark(data: WatchStatusRequest, db = Depends(get_db_plain)):
     return {"status": "success"}
 
 @router.post("/api/watched/batch-status")
-def batch_watched_status_mark(data: BatchWatchStatusRequest, db = Depends(get_db_plain)):
+def batch_watched_status_mark(data: BatchWatchStatusRequest, db = Depends(get_db)):
     conn, cursor = db
 
     if data.action == 'mark_as_watched':
@@ -840,7 +864,7 @@ def make_list(data: ListCreate, db = Depends(get_db)):
         (data.list_name, to_sql_timestamp(require(data.created, 'created'), require_utc_offset(data.utc_offset)), data.utc_offset, data.sort_order, data.profile)
     )
     conn.commit()
-    return {"status": "success", "data": data.dict()}
+    return {"status": "success", "data": data.model_dump()}
 
 @router.post("/api/lists/delete")
 def delete_list(data: ListDelete, db = Depends(get_db)):
@@ -851,7 +875,7 @@ def delete_list(data: ListDelete, db = Depends(get_db)):
     )
     cursor.execute('DELETE FROM personal_lists WHERE name=%s and profile=%s', (data.list_name, data.profile))
     conn.commit()
-    return {"status": "success", "data": data.dict()}
+    return {"status": "success", "data": data.model_dump()}
 
 @router.post("/api/lists/clear-contents")
 def clear_list_contents(data: ListClear, db = Depends(get_db)):
@@ -861,7 +885,7 @@ def clear_list_contents(data: ListClear, db = Depends(get_db)):
         (data.list_name, data.profile)
     )
     conn.commit()
-    return {"status": "success", "data": data.dict()}
+    return {"status": "success", "data": data.model_dump()}
 
 @router.post("/api/lists/update-details")
 def update_list_details(data: ListUpdate, db = Depends(get_db)):
@@ -877,7 +901,7 @@ def update_list_details(data: ListUpdate, db = Depends(get_db)):
         )
     conn.commit()
 
-    return {"status": "success", "data": data.dict()}
+    return {"status": "success", "data": data.model_dump()}
 
 @router.get("/api/lists")
 def get_lists(

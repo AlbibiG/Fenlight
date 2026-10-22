@@ -1,0 +1,4 @@
+# Shell scripts and the API package run on Linux, so check them out with LF line endings even on
+# Windows; with CRLF, bash can't run them and api/build.sh would produce a broken installer
+*.sh text eol=lf
+api/** text=auto eol=lf

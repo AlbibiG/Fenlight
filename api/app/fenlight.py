@@ -28,8 +28,8 @@ TIMESTAMP_PATTERN = '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'
 TABLE_DEFINITIONS = (
     '''
     CREATE TABLE IF NOT EXISTS progress (
-        db_type text not null,
-        media_id text not null,
+        db_type varchar(32) not null,
+        media_id varchar(64) not null,
         season integer,
         episode integer,
         resume_point text,
@@ -38,14 +38,14 @@ TABLE_DEFINITIONS = (
         utc_offset varchar(6),
         resume_id integer,
         title text,
-        profile text,
+        profile varchar(191),
         unique (db_type, media_id, season, episode, profile)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''',
     '''
     CREATE TABLE IF NOT EXISTS historical (
-        db_type text not null,
-        media_id text not null,
+        db_type varchar(32) not null,
+        media_id varchar(64) not null,
         season integer,
         episode integer,
         resume_point text,
@@ -54,41 +54,41 @@ TABLE_DEFINITIONS = (
         ended timestamp NULL DEFAULT NULL,
         utc_offset varchar(6),
         resume_id integer,
-        play_event text,
+        play_event varchar(32),
         title text,
-        profile text,
+        profile varchar(191),
         unique (db_type, media_id, season, episode, started, profile, play_event)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''',
     '''
     CREATE TABLE IF NOT EXISTS watched (
-        db_type text not null,
-        media_id text not null,
+        db_type varchar(32) not null,
+        media_id varchar(64) not null,
         season integer,
         episode integer,
         last_played timestamp NULL DEFAULT NULL,
         utc_offset varchar(6),
         title text,
-        profile text,
+        profile varchar(191),
         unique (db_type, media_id, season, episode, profile)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''',
     '''
     CREATE TABLE IF NOT EXISTS watched_status (
-        db_type text not null,
-        media_id text not null,
+        db_type varchar(32) not null,
+        media_id varchar(64) not null,
         status text,
-        profile text,
+        profile varchar(191),
         unique (db_type, media_id, profile)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''',
     '''
     CREATE TABLE IF NOT EXISTS personal_lists (
-        name text,
+        name varchar(191),
         created timestamp NULL DEFAULT NULL,
         utc_offset varchar(6),
         sort_order integer,
-        profile text,
+        profile varchar(191),
         unique(name, profile)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ''',
@@ -114,6 +114,21 @@ TIMESTAMP_COLUMNS = (
     ('watched', 'last_played'),
     ('personal_lists', 'created'),
     ('personal_list_items', 'date_added')
+)
+
+# Tables created before the key columns were VARCHAR have them as TEXT, which MariaDB can only make unique with a
+# hash that no query can use, so every lookup scanned the whole table. (table, [(column, length, not null)], unique key)
+KEY_COLUMNS = (
+    ('progress', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'profile')),
+    ('historical', (('db_type', 32, True), ('media_id', 64, True), ('play_event', 32, False), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'started', 'profile', 'play_event')),
+    ('watched', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'profile')),
+    ('watched_status', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'profile')),
+    ('personal_lists', (('name', 191, False), ('profile', 191, False)),
+     ('name', 'profile'))
 )
 
 # utc_offset records the client's timezone each timestamp was written in, placed after the table's last timestamp column
@@ -196,6 +211,35 @@ def _columns(cursor, table_name):
     cursor.execute('SHOW COLUMNS FROM %s' % table_name)
     return {row[0].lower(): row for row in map(_text_row, cursor.fetchall())}
 
+def _unique_indexes(cursor, table_name):
+    cursor.execute('SHOW INDEX FROM %s WHERE Non_unique = 0' % table_name)
+    return {row[2] for row in map(_text_row, cursor.fetchall()) if row[2] != 'PRIMARY'}
+
+def _migrate_key_columns(cursor):
+    """Turn TEXT key columns into VARCHAR and rebuild the unique key as an ordinary index that lookups can use"""
+    for table_name, key_columns, unique_key in KEY_COLUMNS:
+        columns = _columns(cursor, table_name)
+        text_columns = [i for i in key_columns if i[0] in columns and columns[i[0]][1].lower() == 'text']
+        if not text_columns:
+            continue
+        too_long = []
+        for column_name, length, _ in text_columns:
+            cursor.execute('SELECT COALESCE(MAX(CHAR_LENGTH(%s)), 0) FROM %s' % (column_name, table_name))
+            if cursor.fetchone()[0] > length:
+                too_long.append(column_name)
+        if too_long:
+            logger.warning("Leaving %s as it is: some %s values are too long for an indexed column", table_name, ', '.join(too_long))
+            continue
+        changes = ['DROP INDEX `%s`' % index_name for index_name in _unique_indexes(cursor, table_name)]
+        changes += ['MODIFY COLUMN %s varchar(%d)%s' % (name, length, ' not null' if not_null else '') for name, length, not_null in text_columns]
+        changes.append('ADD UNIQUE (%s)' % ', '.join(unique_key))
+        logger.info("Converting the key columns of %s to VARCHAR so lookups can use its index", table_name)
+        try:
+            cursor.execute('ALTER TABLE %s %s' % (table_name, ', '.join(changes)))
+        except mysql.connector.Error as e:
+            # ALTER TABLE is all or nothing, so the table keeps working as before, just without a usable index
+            logger.warning("Could not convert the key columns of %s: %s", table_name, e)
+
 def _parse_list_item(raw_item):
     try:
         item = json.loads(raw_item)
@@ -236,12 +280,7 @@ def _migrate_old_personal_list_items(cursor):
     if cursor.rowcount:
         logger.warning("Removed %d personal list items with no media type", cursor.rowcount)
     # replace the old (profile, list_name, media_id) unique key with the one used by Fen Light
-    cursor.execute('SHOW INDEX FROM personal_list_items WHERE Non_unique = 0')
-    unique_indexes = {}
-    for row in map(_text_row, cursor.fetchall()):
-        if row[2] != 'PRIMARY':
-            unique_indexes.setdefault(row[2], set()).add(row[4].lower())
-    for index_name in unique_indexes:
+    for index_name in _unique_indexes(cursor, 'personal_list_items'):
         cursor.execute('ALTER TABLE personal_list_items DROP INDEX `%s`' % index_name)
     cursor.execute('ALTER TABLE personal_list_items DROP COLUMN item')
     if 'item_id' in columns:
@@ -327,6 +366,7 @@ def initialize_database(conn, target_database: str):
             _migrate_old_personal_list_items(cursor)
             _add_utc_offset_columns(cursor)
             _migrate_timestamp_columns(cursor)
+            _migrate_key_columns(cursor)
             conn.commit()
             _migrate_personal_list_contents(conn, cursor)
             _initialized_databases.add(target_database)
@@ -344,31 +384,67 @@ def _connection_error(error, target_database):
     logger.error(detail)
     return HTTPException(status_code=status_code, detail=detail)
 
+# Logging in to MariaDB costs several round trips, so each database keeps a few connections open between requests
+POOL_IDLE_MAX = 8
+_idle_connections = {}
+_idle_lock = threading.Lock()
+
+def _close_quietly(conn):
+    try:
+        conn.close()
+    except mysql.connector.Error:
+        pass
+
+def _take_idle_connection(target_database):
+    """An idle connection to target_database that still answers, or None"""
+    while True:
+        with _idle_lock:
+            idle = _idle_connections.get(target_database)
+            conn = idle.pop() if idle else None
+        if conn is None or conn.is_connected():
+            return conn
+        _close_quietly(conn)
+
+def release_connection(target_database, conn):
+    """End the request's transaction and keep the connection for the next request"""
+    try:
+        # an open transaction would show the next request an old snapshot of the data
+        conn.rollback()
+    except mysql.connector.Error:
+        return _close_quietly(conn)
+    with _idle_lock:
+        idle = _idle_connections.setdefault(target_database, [])
+        if len(idle) < POOL_IDLE_MAX:
+            idle.append(conn)
+            return
+    _close_quietly(conn)
+
 def get_db_connection(target_database: str):
+    conn = _take_idle_connection(target_database)
+    if conn is not None:
+        return conn
     try:
         conn = mysql.connector.connect(
             host=DB_HOST,
             port=DB_PORT,
             user=BACKEND_DB_USER,
             password=BACKEND_DB_PASS,
-            database=target_database
+            database=target_database,
+            # store TIMESTAMP values exactly as the Fenlight client sent them, without MariaDB shifting them
+            # by its own timezone (the same as Fen Light's direct MariaDB mode); reapplied on every reconnect
+            time_zone='+00:00'
         )
     except mysql.connector.Error as e:
         raise _connection_error(e, target_database) from e
     try:
-        cursor = conn.cursor()
-        # store TIMESTAMP values exactly as the Fenlight client sent them, without MariaDB shifting them
-        # by its own timezone (the same as Fen Light's direct MariaDB mode)
-        cursor.execute("SET time_zone = '+00:00'")
-        cursor.close()
         initialize_database(conn, target_database)
     except mysql.connector.Error as e:
-        conn.close()
+        _close_quietly(conn)
         detail = "Could not set up the Fen Light tables in database %r: %s" % (target_database, e)
         logger.error(detail)
         raise HTTPException(status_code=500, detail=detail) from e
     except Exception:
-        conn.close()
+        _close_quietly(conn)
         raise
     return conn
 
@@ -383,14 +459,17 @@ def get_db(
         yield conn, cursor
     except mysql.connector.Error as e:
         logger.error("%s %s failed in database %r: %s", request.method, request.url.path, target_database, e)
-        try:
-            conn.rollback()
-        except mysql.connector.Error:
-            pass  # the connection is already gone, so there is nothing to roll back
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            cursor.close()
+        except mysql.connector.Error:
+            pass
+        release_connection(target_database, conn)
+
+def _rows(cursor):
+    # FastAPI's generic encoder is several times slower than plain JSON on long lists of rows
+    return JSONResponse(cursor.fetchall())
 
 @router.get("/health", include_in_schema=False)
 def health():
@@ -495,8 +574,7 @@ def get_watched_info_movie(profile: str = Query(..., description="The watch prof
         'SELECT media_id, title, CAST(last_played AS CHAR) FROM watched WHERE db_type = %s AND profile = %s',
         ('movie', profile)
     )
-    watched_info = cursor.fetchall()
-    return watched_info
+    return _rows(cursor)
 
 @router.get("/api/hidden/progress")
 def get_hidden_progress_items(profile: str = Query(..., description="The watch profile name"), db = Depends(get_db)):
@@ -509,24 +587,27 @@ def get_hidden_progress_items(profile: str = Query(..., description="The watch p
     # Fen Light expects the stored list string itself, e.g. "[1399, 60625]"
     return row[0] if row else None
 
+def _hidden_items(cursor, profile):
+    """The profile's list of show IDs hidden from progress lists"""
+    cursor.execute(
+        'SELECT status FROM watched_status WHERE db_type = %s AND profile = %s',
+        ('hidden_progress_items', profile)
+    )
+    row = cursor.fetchone()
+    if not row or not row[0]:
+        return []
+    try:
+        return json.loads(row[0]) or []
+    except (json.JSONDecodeError, TypeError):
+        try:
+            return ast.literal_eval(row[0]) or []
+        except (ValueError, SyntaxError):
+            return []
+
 @router.post("/api/hidden/progress/update")
 def update_hidden_progress_items(data: HideProgressRequest, db = Depends(get_db)):
     conn, cursor = db
-    cursor.execute(
-        'SELECT status FROM watched_status WHERE db_type = %s AND profile = %s',
-        ('hidden_progress_items', data.profile)
-    )
-    row = cursor.fetchone()
-
-    current_items = []
-    if row and row[0]:
-        try:
-            current_items = json.loads(row[0]) or []
-        except (json.JSONDecodeError, TypeError):
-            try:
-                current_items = ast.literal_eval(row[0]) or []
-            except (ValueError, SyntaxError):
-                current_items = []
+    current_items = _hidden_items(cursor, data.profile)
 
     if data.action == 'drop':
         if data.media_id not in current_items:
@@ -553,9 +634,7 @@ def get_bookmarks_movie(
         'SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = %s AND profile = %s',
         ('movie', profile)
     )
-
-    info = cursor.fetchall()
-    return info
+    return _rows(cursor)
 
 @router.get("/api/watched/tvshow/info")
 def get_watched_info_tvshow(
@@ -575,9 +654,7 @@ def get_watched_info_tvshow(
         WHERE w.db_type = %s AND w.profile = %s
         GROUP BY w.media_id
     ''', ('episode', profile, 'episode', profile))
-    data = cursor.fetchall()
-
-    return data
+    return _rows(cursor)
 
 @router.get("/api/watched/season/info")
 def get_watched_info_season(
@@ -590,8 +667,7 @@ def get_watched_info_season(
         'SELECT season, COUNT(*) AS counter FROM watched WHERE db_type = %s AND media_id = %s AND profile = %s GROUP BY media_id, season',
         ('episode', media_id, profile)
     )
-    data = cursor.fetchall()
-    return data
+    return _rows(cursor)
 
 @router.get("/api/watched/episode/info")
 def get_watched_info_episode(
@@ -604,8 +680,7 @@ def get_watched_info_episode(
         'SELECT season, episode FROM watched WHERE db_type = %s AND media_id = %s AND profile = %s',
         ('episode', media_id, profile)
     )
-    data = cursor.fetchall()
-    return data
+    return _rows(cursor)
 
 @router.get("/api/bookmarks/episode/info")
 def get_bookmarks_episode(
@@ -619,8 +694,7 @@ def get_bookmarks_episode(
         'SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = %s AND media_id = %s AND season = %s AND profile = %s',
         ('episode', media_id, int(season), profile)
     )
-    info = cursor.fetchall()
-    return info
+    return _rows(cursor)
 
 @router.post("/api/bookmarks/erase")
 def erase_bookmark(data: EraseBookmarkRequest, db = Depends(get_db)):
@@ -672,17 +746,26 @@ def watched_status_mark(data: WatchStatusRequest, db = Depends(get_db)):
     conn, cursor = db
 
     if data.action == 'mark_as_watched':
+        season = int(data.season) if data.season is not None else None
+        episode = int(data.episode) if data.episode is not None else None
+        profile = str(data.profile) if data.profile is not None else ""
+        last_played = to_sql_timestamp(require(data.last_played, 'last_played'), require_utc_offset(data.utc_offset))
+        # a movie's empty season and episode never match in the unique key, so remove its old row first
+        cursor.execute(
+            'DELETE FROM watched WHERE db_type = %s AND media_id = %s AND season <=> %s AND episode <=> %s AND profile <=> %s',
+            (str(data.media_type), str(data.media_id), season, episode, profile)
+        )
         cursor.execute(
             'REPLACE INTO watched (db_type, media_id, season, episode, last_played, utc_offset, title, profile) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
             (
                 str(data.media_type),
                 str(data.media_id),
-                int(data.season) if data.season is not None else None,
-                int(data.episode) if data.episode is not None else None,
-                to_sql_timestamp(require(data.last_played, 'last_played'), require_utc_offset(data.utc_offset)),
+                season,
+                episode,
+                last_played,
                 data.utc_offset,
                 str(data.title) if data.title is not None else "",
-                str(data.profile) if data.profile is not None else ""
+                profile
             )
         )
     else:
@@ -760,9 +843,7 @@ def get_next_episodes(
             WHERE w.db_type = %s AND w.profile = %s
             GROUP BY w.media_id
         ''', ('episode', profile, 'episode', profile))
-
-    data = cursor.fetchall()
-    return data
+    return _rows(cursor)
 
 @router.get("/api/progress/movies")
 def get_in_progress_movies(
@@ -771,8 +852,7 @@ def get_in_progress_movies(
 ):
     _, cursor = db
     cursor.execute('SELECT media_id, title, CAST(last_played AS CHAR) FROM progress WHERE db_type = %s AND profile = %s', ('movie', profile))
-    data = cursor.fetchall()
-    return data
+    return _rows(cursor)
 
 @router.get("/api/progress/episodes")
 def get_in_progress_episodes(
@@ -781,18 +861,31 @@ def get_in_progress_episodes(
 ):
     _, cursor = db
     cursor.execute('SELECT media_id, season, episode, resume_point, CAST(last_played AS CHAR), title FROM progress WHERE db_type = %s AND profile = %s', ('episode', profile))
-    data = cursor.fetchall()
-    return data
+    return _rows(cursor)
 
 @router.get("/api/watched/recently")
 def get_recently_watched(
     media_type: str = Query(..., description="Media type (movie or episode)"),
     short_list: int = Query(1, description="Whether to return a short list"),
+    per_show: int = Query(0, description="Only each show's most recently watched episode"),
     profile: str = Query(..., description="The watch profile name"),
     db = Depends(get_db)
 ):
     _, cursor = db
-    if media_type == 'episode':
+    if media_type != 'episode':
+        return []
+    if per_show:
+        # what Fen Light's "Because You Watched" lists keep of the full history: one row per show, newest first
+        cursor.execute('''
+            WITH cte AS (
+                SELECT media_id, season, episode, title, last_played,
+                       ROW_NUMBER() OVER (PARTITION BY media_id ORDER BY last_played DESC, season DESC, episode DESC) AS rn
+                FROM watched WHERE db_type = %s AND profile = %s
+            )
+            SELECT media_id, season, episode, title, CAST(last_played AS CHAR) FROM cte WHERE rn = 1
+            ORDER BY last_played DESC
+        ''', ('episode', profile))
+    else:
         limit_clause = "LIMIT 20" if short_list else ""
         cursor.execute(f'''
             SELECT media_id, season, episode, title, CAST(last_played AS CHAR)
@@ -801,9 +894,7 @@ def get_recently_watched(
             ORDER BY last_played DESC
             {limit_clause}
         ''', ('episode', profile))
-        data = cursor.fetchall()
-        return data
-    return []
+    return _rows(cursor)
 
 class ListCreate(BaseModel):
     list_name: str
@@ -916,8 +1007,7 @@ def get_lists(
         'l.sort_order FROM personal_lists l WHERE l.profile=%s',
         (profile,)
     )
-    rows = cursor.fetchall()
-    return rows
+    return _rows(cursor)
 
 @router.get("/api/lists/get")
 def get_list(
@@ -931,11 +1021,11 @@ def get_list(
         'WHERE list_name=%s AND profile=%s ORDER BY date_added',
         (list_name, profile)
     )
-    return [
+    return JSONResponse([
         {'media_id': row[0], 'media_type': row[1], 'type': row[1], 'title': row[2],
          'date_added': row[3], 'release_date': row[4]}
         for row in cursor.fetchall()
-    ]
+    ])
 
 @router.post("/api/lists/add-item")
 def add_list_item(data: ListAddItem, db = Depends(get_db)):
@@ -963,3 +1053,131 @@ def add_many_list_items(data: ListAddMany, db = Depends(get_db)):
         cursor.executemany(LIST_ITEM_INSERT, rows)
     conn.commit()
     return {"success": True}
+
+BATCH_MAX_SHOWS = 1000
+IMPORT_MAX_ROWS = 2000
+
+class EpisodesInfoRequest(BaseModel):
+    media_ids: list[Union[str, int]]
+    profile: str
+
+@router.post("/api/episodes/info")
+def get_episodes_info(data: EpisodesInfoRequest, db = Depends(get_db)):
+    """Watched episodes and episode bookmarks for many shows at once, so an episode list or widget
+    needs one request instead of two per show"""
+    _, cursor = db
+    media_ids = list(dict.fromkeys(str(i) for i in data.media_ids))
+    if len(media_ids) > BATCH_MAX_SHOWS:
+        raise HTTPException(status_code=422, detail="Ask for at most %d shows at a time" % BATCH_MAX_SHOWS)
+    watched, bookmarks = {i: [] for i in media_ids}, {i: [] for i in media_ids}
+    if media_ids:
+        in_list = ', '.join(['%s'] * len(media_ids))
+        cursor.execute(
+            'SELECT media_id, season, episode FROM watched WHERE db_type = %%s AND profile = %%s AND media_id IN (%s)' % in_list,
+            ('episode', data.profile, *media_ids)
+        )
+        for media_id, season, episode in cursor.fetchall():
+            watched.setdefault(media_id, []).append([season, episode])
+        cursor.execute(
+            'SELECT media_id, season, resume_point, curr_time, resume_id, episode FROM progress '
+            'WHERE db_type = %%s AND profile = %%s AND media_id IN (%s)' % in_list,
+            ('episode', data.profile, *media_ids)
+        )
+        for media_id, season, resume_point, curr_time, resume_id, episode in cursor.fetchall():
+            bookmarks.setdefault(media_id, []).append([season, resume_point, curr_time, resume_id, episode])
+    return JSONResponse({'watched': watched, 'bookmarks': bookmarks})
+
+@router.get("/api/profiles")
+def get_profiles(db = Depends(get_db)):
+    """The profiles that already have data in this database, for Fen Light's profile picker"""
+    _, cursor = db
+    cursor.execute('''
+        SELECT profile, SUM(watched), SUM(in_progress), SUM(lists) FROM (
+            SELECT profile, COUNT(*) AS watched, 0 AS in_progress, 0 AS lists FROM watched GROUP BY profile
+            UNION ALL SELECT profile, 0, COUNT(*), 0 FROM progress GROUP BY profile
+            UNION ALL SELECT profile, 0, 0, COUNT(*) FROM personal_lists GROUP BY profile
+        ) counts
+        WHERE profile IS NOT NULL AND profile <> ''
+        GROUP BY profile ORDER BY profile
+    ''')
+    return JSONResponse([
+        {'profile': profile, 'watched': int(watched), 'in_progress': int(in_progress), 'lists': int(lists)}
+        for profile, watched, in_progress, lists in cursor.fetchall()
+    ])
+
+class ImportRequest(BaseModel):
+    profile: str
+    utc_offset: Optional[str] = None
+    # rows of [media_type, media_id, season, episode, last_played, title]
+    watched: list[list[Any]] = []
+    # rows of [media_type, media_id, season, episode, resume_point, curr_time, last_played, resume_id, title]
+    progress: list[list[Any]] = []
+    hidden: list[int] = []
+
+def _optional_int(value):
+    return int(value) if value not in (None, '') else None
+
+def _import_timestamp(value, utc_offset):
+    # one unreadable date in an old history shouldn't stop the rest of it from importing
+    try:
+        return to_sql_timestamp(value, utc_offset)
+    except HTTPException:
+        return None
+
+def _insert_missing(cursor, table_name, columns, rows):
+    """Insert the rows the table doesn't have yet and return how many were added. Rows with a season and episode
+    are caught by the unique key (one batched INSERT IGNORE); movies, whose empty season and episode the unique key
+    doesn't match, are checked one by one. Each row starts with db_type, media_id, season, episode and ends with profile."""
+    added = 0
+    keyed = [row for row in rows if row[2] is not None and row[3] is not None]
+    keyless = [row for row in rows if row[2] is None or row[3] is None]
+    placeholders = ', '.join(['%s'] * len(columns))
+    if keyed:
+        cursor.executemany('INSERT IGNORE INTO %s (%s) VALUES (%s)' % (table_name, ', '.join(columns), placeholders), keyed)
+        added += cursor.rowcount
+    if keyless:
+        cursor.executemany(
+            'INSERT INTO %s (%s) SELECT %s FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM %s WHERE db_type = %%s AND media_id = %%s '
+            'AND season <=> %%s AND episode <=> %%s AND profile <=> %%s)' % (table_name, ', '.join(columns), placeholders, table_name),
+            [row + row[:4] + row[-1:] for row in keyless]
+        )
+        added += cursor.rowcount
+    return added
+
+@router.post("/api/import")
+def import_history(data: ImportRequest, db = Depends(get_db)):
+    """Add watch history from another source, such as Fen Light's local database or its Trakt cache.
+    Entries the profile already has are kept as they are."""
+    conn, cursor = db
+    if len(data.watched) + len(data.progress) > IMPORT_MAX_ROWS:
+        raise HTTPException(status_code=422, detail="Send at most %d rows at a time" % IMPORT_MAX_ROWS)
+    if any(len(row) < 6 for row in data.watched) or any(len(row) < 9 for row in data.progress):
+        raise HTTPException(status_code=422, detail="watched rows need 6 values and progress rows 9")
+    utc_offset = require_utc_offset(data.utc_offset)
+    added = {'watched': 0, 'progress': 0, 'hidden': 0}
+    if data.watched:
+        added['watched'] = _insert_missing(
+            cursor, 'watched', ('db_type', 'media_id', 'season', 'episode', 'last_played', 'utc_offset', 'title', 'profile'),
+            [(str(media_type), str(media_id), _optional_int(season), _optional_int(episode),
+              _import_timestamp(last_played, utc_offset), utc_offset, title, data.profile)
+             for media_type, media_id, season, episode, last_played, title in (row[:6] for row in data.watched)]
+        )
+    if data.progress:
+        added['progress'] = _insert_missing(
+            cursor, 'progress', ('db_type', 'media_id', 'season', 'episode', 'resume_point', 'curr_time', 'last_played',
+                                 'utc_offset', 'resume_id', 'title', 'profile'),
+            [(str(media_type), str(media_id), _optional_int(season), _optional_int(episode), str(resume_point), str(curr_time),
+              _import_timestamp(last_played, utc_offset), utc_offset, _optional_int(resume_id) or 0, title, data.profile)
+             for media_type, media_id, season, episode, resume_point, curr_time, last_played, resume_id, title in (row[:9] for row in data.progress)]
+        )
+    if data.hidden:
+        current_items = _hidden_items(cursor, data.profile)
+        new_items = [i for i in dict.fromkeys(data.hidden) if i not in current_items]
+        if new_items:
+            cursor.execute(
+                'REPLACE INTO watched_status VALUES (%s, %s, %s, %s)',
+                ('hidden_progress_items', 'hidden', json.dumps(current_items + new_items), data.profile)
+            )
+        added['hidden'] = len(new_items)
+    conn.commit()
+    return added

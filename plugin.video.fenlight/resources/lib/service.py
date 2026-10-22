@@ -120,6 +120,22 @@ class UpdateCheck:
 		except: pass
 		return logger('UpdateCheck', 'Service Finished')
 
+class WatchHistoryQueue:
+	"""Sends the watch history changes saved while the Fen Light API was unreachable, every few minutes"""
+	def run(self):
+		logger('WatchHistoryQueue', 'Service Starting')
+		window, monitor = xbmcgui.Window(10000), xbmc.Monitor()
+		wait_for_abort = monitor.waitForAbort
+		while not wait_for_abort(300):
+			if window.getProperty(pause_services_prop) == 'true' or settings.watched_indicators() != 3: continue
+			try:
+				from apis.mariadb_api import flush_offline_queue
+				flush_offline_queue()
+			except Exception as exc: logger('WatchHistoryQueue', severity='medium', notify=False, error_message=str(exc))
+		try: del monitor
+		except: pass
+		return logger('WatchHistoryQueue', 'Service Finished')
+
 class WidgetRefresher:
 	def run(self):
 		logger('WidgetRefresher', 'Service Starting')
@@ -215,6 +231,7 @@ class FenLightMonitor(xbmc.Monitor):
 		Thread(target=TraktMonitor().run).start()
 		Thread(target=UpdateCheck().run).start()
 		Thread(target=WidgetRefresher().run).start()
+		Thread(target=WatchHistoryQueue().run).start()
 		AutoStart().run()
 
 	def onNotification(self, sender, method, data):

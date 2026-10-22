@@ -114,6 +114,7 @@ def build_episode_list(params):
 	show_clearlogo = meta_get('clearlogo') or ''
 	show_landscape = meta_get('landscape') or ''
 	watched_db = ws.get_database(watched_indicators)
+	ws.prefetch_episodes(watched_db, [tmdb_id])
 	watched_info = ws.watched_info_episode(tmdb_id, watched_db)
 	if season == 'all':
 		total_seasons = meta_get('total_seasons')
@@ -247,7 +248,7 @@ def build_single_episode(list_type, params={}):
 											'season': season, 'episode': episode, 'refresh': 'true'}))])
 				if unwatched_info:
 					total_aired_eps = meta_get('total_aired_eps')
-					total_unwatched = ws.get_watched_status_tvshow(ws.watched_info_tvshow(watched_db).get(str(tmdb_id), None), total_aired_eps)[2]
+					total_unwatched = ws.get_watched_status_tvshow(tvshow_watched_info.get(str(tmdb_id), None), total_aired_eps)[2]
 					if total_aired_eps != total_unwatched: set_properties({'watchedepisodes': '1', 'unwatchedepisodes': str(total_unwatched)})
 			if all_episodes:
 				if all_episodes == 1 and meta_get('total_seasons') > 1: browse_params = {'mode': 'build_season_list', 'tmdb_id': tmdb_id}
@@ -347,6 +348,9 @@ def build_single_episode(list_type, params={}):
 	else: data, return_results = sorted(params, key=lambda i: i['custom_order']), True
 	list_type_compare = list_type.split('episode.')[1]
 	list_type_starts_with = list_type_compare.startswith
+	# fetch what _process needs for every show once, instead of once (or twice) per show from each thread
+	ws.prefetch_episodes(watched_db, [i['media_ids'].get('tmdb') for i in data if isinstance(i.get('media_ids'), dict)])
+	tvshow_watched_info = ws.watched_info_tvshow(watched_db) if unwatched_info else {}
 	threads = TaskPool().tasks_enumerate(_process, data, min(len(data), settings.max_threads()))
 	[i.join() for i in threads]
 	if return_results: return [(i['list_items'], i['sort_order']) for i in item_list]

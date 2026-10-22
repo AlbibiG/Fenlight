@@ -1,4 +1,17 @@
-﻿[COLOR dodgerblue][B]Version 1.1.29[/B][/COLOR]
+﻿[COLOR dodgerblue][B]Version 1.1.31[/B][/COLOR]
+- [FEATURE] Added "Test Connection" to the MariaDB settings. Checks the address, API key, database and profile, and says exactly what to fix.
+- [FEATURE] Added "Import Watch History". Copies the watched, in progress, hidden shows and personal lists Fen Light kept on this device (or its copy of Trakt) into MariaDB. Entries already there are kept.
+- [FEATURE] Profile Name now lists the profiles that already have history, or takes a new name.
+- [FEATURE] Changes made while the MariaDB API is unreachable are saved and sent once it's back.
+- [FEATURE] MariaDB API errors are shown in plain words, such as a wrong API key or a missing database.
+- [CODE] Episode lists and widgets get every show's watch history in one request instead of one or two per show.
+- [CODE] Reuses connections to the MariaDB API, and skips it for 30 seconds after a failure instead of waiting on every request.
+- [CODE] MariaDB tables are converted to indexed columns for faster lookups.
+- [BUG] Fixed movies getting a duplicate watched row and bookmark each time they were marked watched or bookmarked.
+- [BUG] Fixed "Reconfigure Database Tables" failing with the MariaDB API provider.
+- [BUG] Fixed the hidden progress list being run as code (eval) instead of read as data.
+
+[COLOR dodgerblue][B]Version 1.1.29[/B][/COLOR]
 - [BUG] Fixed current_point for media_watched_marker when skipping to end.
 
 [COLOR dodgerblue][B]Version 1.1.28[/B][/COLOR]

@@ -55,11 +55,17 @@ In Fen Light's settings, under **Watched Indicators**, set **Watched Status Prov
 - **External Host**: exactly the address the installer printed, for example `http://192.168.1.20:8000`, with no `/api` or trailing slash
 - **API Key**: the key the installer printed
 - **Database**: the database you created (`fenlight`)
-- **Profile Name**: any name; each profile keeps its own watch history
+- **Profile Name**: pick one that already has history, or choose **New Profile...** and type a name; each profile keeps its own watch history
+
+Then press **Test Connection**. It checks the address, API key, database and profile, and says exactly what to fix if something is wrong.
+
+To bring over the history you already have, press **Import Watch History**. It copies what Fen Light kept on this device (watched, in progress, hidden shows and personal lists) or its copy of your Trakt history into the database. Entries already there are kept, so importing twice is harmless.
+
+If the API can't be reached, for example while its container restarts, Fen Light saves your changes and sends them once it's back.
 
 ### Updating, changing settings and removing
 
-- **Update:** run the install command again. It keeps your settings.
+- **Update:** run the install command again. It keeps your settings. After an update from an older version, the first request converts older tables so that lookups can use an index; with a long history this takes a few seconds, once.
 - **Change settings:** add `--reconfigure`, as in `curl -fsSL <installer URL> | bash -s -- --reconfigure`. Or edit `/etc/fenlight-api/api.env` and run `systemctl restart fenlight-api`.
 - **New API key**, for example if the old one leaked: add `--new-key`, as in `curl -fsSL <installer URL> | bash -s -- --new-key`. The installer prints the new key, and the old one stops working right away, so update **API Key** in Fen Light on every device. To choose the key yourself, put `API_SECRET_KEY='your-key'` just before `bash`.
 - **Remove:**
@@ -76,7 +82,7 @@ In Fen Light's settings, under **Watched Indicators**, set **Watched Status Prov
 - **Install log:** `/var/log/fenlight-api-install.log` has the output of the installer's package step.
 - **Health check:** `http://<API address>/health` answers with status `ok` when the API is running and can log in to MariaDB. Uptime monitors can use it too.
 
-What the status codes in the log mean:
+**Test Connection** in Fen Light's settings is the quickest check. What the status codes in the log mean:
 
 - **401**: the **API Key** in Fen Light doesn't match `API_SECRET_KEY` in `/etc/fenlight-api/api.env`.
 - **404**: the database in Fen Light's **Database** setting doesn't exist, or the API's MariaDB user can't access it.
@@ -86,3 +92,8 @@ What the status codes in the log mean:
 
 - The API key gives access to every database the API's MariaDB user can use, so give the API a dedicated user like the one above rather than `root`.
 - The API uses plain HTTP. That's fine on a home network; if it's reachable from the internet, put an HTTPS reverse proxy such as Caddy or nginx in front of it.
+
+## Releasing
+
+- **Add-on:** run `python release.py 1.1.31` (with the new version number), then commit and push. It sets the version in `addon.xml`, builds `packages/plugin.video.fenlight-1.1.31.zip` without Python caches or pymysql's tests, points `fen_light_version` and `packages/index.html` at it, and keeps the newest 10 zips for rollback.
+- **API:** run `bash api/build.sh`, then commit the changed `api/` files together with the rebuilt `api/dist/fenlight-api-installer.sh`. Users get it by re-running the install command.

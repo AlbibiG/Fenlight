@@ -3,6 +3,9 @@ name: Deploy Packages to GitHub Pages
 on:
   push:
     branches: [ "main" ]
+    # only a release changes what the page serves
+    paths: [ "packages/**" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,10 +27,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v4
+      - name: Collect the page and the files it links to
+        # Kodi's file manager only sees what index.html links, so the older zips kept for rollback stay out
+        run: |
+          mkdir _site
+          cp packages/index.html _site/
+          grep -o 'href="[^"]*"' packages/index.html | sed 's/^href="//; s/"$//' | while read -r file; do cp "packages/$file" _site/; done
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './packages'
+          path: './_site'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

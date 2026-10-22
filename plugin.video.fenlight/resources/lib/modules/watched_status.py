@@ -1,3 +1,4 @@
+from ast import literal_eval
 from threading import Condition, Thread
 from time import monotonic
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
@@ -15,7 +16,8 @@ def get_database(watched_indicator=None):
 
 def get_hidden_progress_items(watched_indicators):
 	try:
-		if watched_indicators != 1: return eval(get_database().get_hidden_progress_items()) or []
+		# the stored list comes from the database or the API, so only ever parse it as data, never run it
+		if watched_indicators != 1: return literal_eval(get_database().get_hidden_progress_items()) or []
 		else: return trakt_get_hidden_items('dropped')
 	except: return []
 
@@ -256,11 +258,19 @@ def get_progress_status_season(watched, aired_eps):
 	except: progress = 0
 	return progress
 
+def prefetch_episodes(watched_db, media_ids):
+	"""Let a remote watch history (MariaDB, API) fetch the episodes and bookmarks of many shows at once, so an
+	episode list doesn't query it once or twice per show. Local databases don't need this and don't have it."""
+	prefetch = getattr(watched_db, 'prefetch_episodes', None)
+	if not prefetch: return
+	try: prefetch(media_ids)
+	except Exception as e: logger('prefetch_episodes', severity='medium', notify=False, error_message=str(e))
+
 def watched_info_episode(media_id, watched_db=None):
 	if not watched_db: watched_db = get_database()
 	try: watched_info = watched_db.get_watched_info_episode(media_id)
 	except: return []
-	return watched_info
+	return watched_info or []
 
 def get_watched_status_episode(watched_info, season_episode):
 	target = tuple(int(x) for x in season_episode)
@@ -281,6 +291,7 @@ def get_bookmarks_episode(media_id, season, watched_db=None):
 
 def get_bookmarks_all_episode(media_id, total_seasons, watched_db=None):
 	if not watched_db: watched_db = get_database()
+	prefetch_episodes(watched_db, [media_id])
 	all_seasons_info = {}
 	for season in range(1, total_seasons + 1):
 		try:

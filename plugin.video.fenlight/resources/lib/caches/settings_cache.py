@@ -188,18 +188,98 @@ def restore_setting_default(params):
 
 
 def reconfigure_watch_history_database(params=None):
+	from modules.settings import watched_indicators
+	if watched_indicators() != 2:
+		return kodi_utils.ok_dialog(heading='Reconfigure Database Tables', text='This is only needed for the MariaDB provider.[CR]The Fen Light API sets up and updates its tables by itself.')
 	if not kodi_utils.confirm_dialog(text='Reconfigure progress database table?', ok_label='Yes', cancel_label='No', default_control=11):
 		return
 	try:
-		from modules.settings import watched_indicators
-		if watched_indicators() == 2:
-			from caches.mariadb_cache import reconfigure_history_database
+		from caches.mariadb_cache import reconfigure_history_database
 		if reconfigure_history_database():
 			kodi_utils.notification('Progress table reconfigured successfully')
 		else:
 			kodi_utils.notification('Progress table reconfiguration failed')
 	except Exception as exc:
 		kodi_utils.logger(function='reconfigure_watch_history_database', severity='high', notify=True, error_message=str(exc))
+
+def _watch_history_database(mode):
+	return connect_database({2: 'mariadb', 3: 'mariadb_api'}[mode])
+
+def test_watch_history_connection(params=None):
+	from modules.settings import watched_indicators
+	mode = watched_indicators()
+	if mode == 3: from apis.mariadb_api import test_connection
+	elif mode == 2: from caches.mariadb_cache import test_connection
+	else: return kodi_utils.ok_dialog(heading='Test Connection', text='Set Watched Status Provider to MariaDB or MariaDB API first.')
+	kodi_utils.show_busy_dialog()
+	try: connected, message = test_connection()
+	except Exception as exc: connected, message = False, str(exc)
+	finally: kodi_utils.hide_busy_dialog()
+	kodi_utils.ok_dialog(heading='Connected' if connected else 'Connection Failed', text=message)
+
+def choose_watch_history_profile(params):
+	"""Pick a profile that already has history in the database, or type a new name"""
+	from modules.settings import watched_indicators
+	mode, profiles = watched_indicators(), None
+	if mode in (2, 3):
+		kodi_utils.show_busy_dialog()
+		try: profiles = _watch_history_database(mode).get_profiles()
+		except Exception: profiles = None
+		finally: kodi_utils.hide_busy_dialog()
+	# nothing to pick from yet, or the database can't be reached: type a name as before
+	if not profiles: return set_string(params)
+	current = get_setting('fenlight.%s' % params['setting_id'])
+	choices = [('existing', i['profile']) for i in profiles] + [('new', None)]
+	list_items = [{'line1': '%s%s' % (i['profile'], ' (current)' if i['profile'] == current else ''),
+				'line2': '%d watched, %d in progress, %d lists' % (i['watched'], i['in_progress'], i['lists'])} for i in profiles]
+	list_items.append({'line1': 'New Profile...', 'line2': 'Type a name to start a separate watch history'})
+	choice = kodi_utils.select_dialog(choices, **{'items': json.dumps(list_items), 'heading': 'Choose Profile', 'multi_line': 'true'})
+	if not choice: return
+	if choice[0] == 'new': return set_string(params)
+	set_setting(params['setting_id'], choice[1])
+
+def _local_watch_history(source):
+	"""What Fen Light keeps on this device: its own watched database, or the copy of Trakt it syncs"""
+	from ast import literal_eval
+	dbcon = connect_database({'fenlight': 'watched_db', 'trakt': 'trakt_db'}[source])
+	history = {'watched': dbcon.execute('SELECT db_type, media_id, season, episode, last_played, title FROM watched').fetchall(),
+			'progress': dbcon.execute('SELECT db_type, media_id, season, episode, resume_point, curr_time, last_played, resume_id, title FROM progress').fetchall(),
+			'hidden': [], 'lists': []}
+	if source == 'fenlight':
+		try: history['hidden'] = literal_eval(dbcon.execute('SELECT status FROM watched_status WHERE db_type = ?', ('hidden_progress_items',)).fetchone()[0]) or []
+		except: pass
+		for name, sort_order, contents in connect_database('personal_lists_db').execute('SELECT name, sort_order, contents FROM personal_lists').fetchall():
+			try: items = literal_eval(contents) or []
+			except: items = []
+			history['lists'].append((name, sort_order or 0, items))
+	return history
+
+def import_watch_history(params=None):
+	"""Copy the history Fen Light kept on this device, or its copy of Trakt, into the MariaDB database or API"""
+	from modules.settings import watched_indicators, watch_history_database_name, watch_history_profile_name
+	mode = watched_indicators()
+	if mode not in (2, 3):
+		return kodi_utils.ok_dialog(heading='Import Watch History', text='Set Watched Status Provider to MariaDB or MariaDB API first, then import into it.')
+	sources = [('fenlight', 'Fen Light on This Device', 'Watched, in progress, hidden shows and personal lists'),
+			('trakt', 'Trakt', 'Watched and in progress, as of the last Trakt sync on this device')]
+	source = kodi_utils.select_dialog(sources, **{'items': json.dumps([{'line1': i[1], 'line2': i[2]} for i in sources]), 'heading': 'Import From', 'multi_line': 'true'})
+	if not source: return
+	history = _local_watch_history(source[0])
+	if not any(history.values()):
+		return kodi_utils.ok_dialog(heading='Import Watch History', text='There is nothing to import from %s.' % source[1])
+	summary = '%d watched, %d in progress, %d hidden shows and %d lists' % (len(history['watched']), len(history['progress']), len(history['hidden']), len(history['lists']))
+	if not kodi_utils.confirm_dialog(heading='Import Watch History', ok_label='Import', cancel_label='Cancel', default_control=11,
+			text='Import %s into database [B]%s[/B], profile [B]%s[/B]?[CR]Entries already there are kept.' % (summary, watch_history_database_name(), watch_history_profile_name())):
+		return
+	progress = kodi_utils.progress_dialog('Importing Watch History')
+	try:
+		added = _watch_history_database(mode).import_history(callback=lambda done, total: progress.update('Importing %s' % summary, int(done * 100 / total)), **history)
+	except Exception as exc:
+		kodi_utils.logger('import_watch_history', severity='high', notify=False, error_message=str(exc))
+		return kodi_utils.ok_dialog(heading='Import Failed', text=str(exc))
+	finally: progress.close()
+	kodi_utils.ok_dialog(heading='Import Finished', text='Added %d watched, %d in progress, %d hidden shows, %d lists and %d list items.[CR]Entries that were already there were kept.' \
+		% (added['watched'], added['progress'], added['hidden'], added['lists'], added['list_items']))
 
 def default_setting_values(setting_id):
 	d_settings = default_settings()

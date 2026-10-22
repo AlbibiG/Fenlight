@@ -111,6 +111,50 @@ def connect():
         raise
 
 
+# Tables created before the key columns were VARCHAR have them as TEXT, which MariaDB can only make unique with a
+# hash that no query can use, so every lookup scanned the whole table. (table, [(column, length, not null)], unique key)
+# The Fen Light API (api/app/fenlight.py) converts the same tables the same way.
+KEY_COLUMNS = (
+    ('progress', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'profile')),
+    ('historical', (('db_type', 32, True), ('media_id', 64, True), ('play_event', 32, False), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'started', 'profile', 'play_event')),
+    ('watched', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'season', 'episode', 'profile')),
+    ('watched_status', (('db_type', 32, True), ('media_id', 64, True), ('profile', 191, False)),
+     ('db_type', 'media_id', 'profile')),
+    ('personal_lists', (('name', 191, False), ('profile', 191, False)),
+     ('name', 'profile'))
+)
+
+
+def _migrate_key_columns(cursor):
+    """Turn TEXT key columns into VARCHAR and rebuild the unique key as an ordinary index that lookups can use"""
+    for table_name, key_columns, unique_key in KEY_COLUMNS:
+        cursor.execute('SHOW COLUMNS FROM %s' % table_name)
+        types = {row[0].lower(): row[1].lower() for row in cursor.fetchall()}
+        text_columns = [i for i in key_columns if types.get(i[0]) == 'text']
+        if not text_columns:
+            continue
+        too_long = []
+        for column_name, length, _ in text_columns:
+            cursor.execute('SELECT COALESCE(MAX(CHAR_LENGTH(%s)), 0) FROM %s' % (column_name, table_name))
+            if cursor.fetchone()[0] > length:
+                too_long.append(column_name)
+        if too_long:
+            _log_error('Leaving %s as it is: some %s values are too long for an indexed column' % (table_name, ', '.join(too_long)))
+            continue
+        cursor.execute('SHOW INDEX FROM %s WHERE Non_unique = 0' % table_name)
+        changes = ['DROP INDEX `%s`' % name for name in {row[2] for row in cursor.fetchall() if row[2] != 'PRIMARY'}]
+        changes += ['MODIFY COLUMN %s varchar(%d)%s' % (name, length, ' not null' if not_null else '') for name, length, not_null in text_columns]
+        changes.append('ADD UNIQUE (%s)' % ', '.join(unique_key))
+        try:
+            cursor.execute('ALTER TABLE %s %s' % (table_name, ', '.join(changes)))
+        except Exception as exc:
+            # ALTER TABLE is all or nothing, so the table keeps working as before, just without a usable index
+            _log_error('Could not convert the key columns of %s: %s' % (table_name, exc))
+
+
 def initialize_history_database():
     try:
         conn = connect()
@@ -121,8 +165,8 @@ def initialize_history_database():
         with conn.cursor() as cursor:
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS progress (
-                    db_type text not null,
-                    media_id text not null,
+                    db_type varchar(32) not null,
+                    media_id varchar(64) not null,
                     season integer,
                     episode integer,
                     resume_point text,
@@ -131,14 +175,14 @@ def initialize_history_database():
                     utc_offset varchar(6),
                     resume_id integer,
                     title text,
-                    profile text,
+                    profile varchar(191),
                     unique (db_type, media_id, season, episode, profile)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS historical (
-                    db_type text not null,
-                    media_id text not null,
+                    db_type varchar(32) not null,
+                    media_id varchar(64) not null,
                     season integer,
                     episode integer,
                     resume_point text,
@@ -147,41 +191,41 @@ def initialize_history_database():
                     ended timestamp NULL DEFAULT NULL,
                     utc_offset varchar(6),
                     resume_id integer,
-                    play_event text,
+                    play_event varchar(32),
                     title text,
-                    profile text,
+                    profile varchar(191),
                     unique (db_type, media_id, season, episode, started, profile, play_event)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS watched (
-                    db_type text not null,
-                    media_id text not null,
+                    db_type varchar(32) not null,
+                    media_id varchar(64) not null,
                     season integer,
                     episode integer,
                     last_played timestamp NULL DEFAULT NULL,
                     utc_offset varchar(6),
                     title text,
-                    profile text,
+                    profile varchar(191),
                     unique (db_type, media_id, season, episode, profile)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS watched_status (
-                    db_type text not null,
-                    media_id text not null,
+                    db_type varchar(32) not null,
+                    media_id varchar(64) not null,
                     status text,
-                    profile text,
+                    profile varchar(191),
                     unique (db_type, media_id, profile)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS personal_lists (
-                    name text,
+                    name varchar(191),
                     created timestamp NULL DEFAULT NULL,
                     utc_offset varchar(6),
                     sort_order integer,
-                    profile text,
+                    profile varchar(191),
                     unique(name, profile)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ''')
@@ -236,6 +280,7 @@ def initialize_history_database():
                 cursor.execute('SHOW COLUMNS FROM %s' % table_name)
                 if 'utc_offset' not in {row[0].lower() for row in cursor.fetchall()}:
                     cursor.execute('ALTER TABLE %s ADD COLUMN utc_offset varchar(6) AFTER %s' % (table_name, after_column))
+            _migrate_key_columns(cursor)
         conn.commit()
         return True
     except Exception as exc:
@@ -255,42 +300,42 @@ def reconfigure_history_database():
     tables_schema = {
         'progress': {
             'columns': {
-                'db_type': 'text not null', 'media_id': 'text not null',
+                'db_type': 'varchar(32) not null', 'media_id': 'varchar(64) not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
                 'last_played': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'resume_id': 'integer',
-                'title': 'text', 'profile': 'text'
+                'title': 'text', 'profile': 'varchar(191)'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
         },
         'historical': {
             'columns': {
-                'db_type': 'text not null', 'media_id': 'text not null',
+                'db_type': 'varchar(32) not null', 'media_id': 'varchar(64) not null',
                 'season': 'integer', 'episode': 'integer',
                 'resume_point': 'text', 'curr_time': 'text',
                 'started': 'timestamp NULL DEFAULT NULL', 'ended': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'resume_id': 'integer',
-                'play_event': 'text', 'title': 'text', 'profile': 'text'
+                'play_event': 'varchar(32)', 'title': 'text', 'profile': 'varchar(191)'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile', 'started', 'play_event']
         },
         'watched': {
             'columns': {
-                'db_type': 'text not null', 'media_id': 'text not null',
+                'db_type': 'varchar(32) not null', 'media_id': 'varchar(64) not null',
                 'season': 'integer', 'episode': 'integer',
-                'last_played': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'title': 'text', 'profile': 'text'
+                'last_played': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'title': 'text', 'profile': 'varchar(191)'
             },
             'unique': ['db_type', 'media_id', 'season', 'episode', 'profile']
         },
         'watched_status': {
             'columns': {
-                'db_type': 'text not null', 'media_id': 'text not null',
-                'status': 'text', 'profile': 'text'
+                'db_type': 'varchar(32) not null', 'media_id': 'varchar(64) not null',
+                'status': 'text', 'profile': 'varchar(191)'
             },
             'unique': ['db_type', 'media_id', 'profile']
         },
         'personal_lists': {
             'columns': {
-                'name': 'text', 'created': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'sort_order': 'integer', 'profile': 'text'
+                'name': 'varchar(191)', 'created': 'timestamp NULL DEFAULT NULL', 'utc_offset': 'varchar(6)', 'sort_order': 'integer', 'profile': 'varchar(191)'
             },
             'unique': ['name', 'profile']
         },
@@ -366,6 +411,8 @@ def reconfigure_history_database():
 
 class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     """Direct MariaDB watched database. Provides the same watched methods as the SQLite and API databases."""
+    _episodes = None    # watched episodes and bookmarks per show, filled by prefetch_episodes()
+
     def record_historical_play(self, media_type, media_id, season=None, episode=None, title='', started='', ended='', play_event='watched', resume_point='', curr_time='', resume_id=0):
         profile = watch_history_profile_name()
         started, ended = to_sql_timestamp(started), to_sql_timestamp(ended)
@@ -395,7 +442,25 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         return self.execute('SELECT season, COUNT(*) AS COUNTER FROM watched WHERE db_type = ? AND media_id = ? AND profile = ? GROUP BY media_id, season',
             ('episode', str(media_id), watch_history_profile_name())).fetchall()
 
+    def prefetch_episodes(self, media_ids):
+        """Fetch the watched episodes and bookmarks of many shows in two queries; the per-show methods below are then
+        answered from them instead of querying once or twice for every show in an episode list"""
+        media_ids = list(dict.fromkeys(str(i) for i in media_ids if i))[:1000]
+        if not media_ids: return
+        profile, in_list = watch_history_profile_name(), ', '.join(['?'] * len(media_ids))
+        watched, bookmarks = {i: [] for i in media_ids}, {i: [] for i in media_ids}
+        for media_id, season, episode in self.execute('SELECT media_id, season, episode FROM watched WHERE db_type = ? AND profile = ? AND media_id IN (%s)' % in_list,
+                ('episode', profile, *media_ids)).fetchall():
+            watched.setdefault(media_id, []).append((season, episode))
+        for media_id, season, resume_point, curr_time, resume_id, episode in self.execute(
+                'SELECT media_id, season, resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND profile = ? AND media_id IN (%s)' % in_list,
+                ('episode', profile, *media_ids)).fetchall():
+            bookmarks.setdefault(media_id, []).append((season, resume_point, curr_time, resume_id, episode))
+        self._episodes = {'watched': watched, 'bookmarks': bookmarks}
+
     def get_watched_info_episode(self, media_id):
+        cached = self._episodes and self._episodes['watched'].get(str(media_id))
+        if cached is not None: return cached
         return self.execute('SELECT season, episode FROM watched WHERE db_type = ? AND media_id = ? AND profile = ?',
             ('episode', str(media_id), watch_history_profile_name())).fetchall()
 
@@ -424,6 +489,10 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
             ('movie', watch_history_profile_name())).fetchall()
 
     def get_bookmarks_episode(self, media_id, season):
+        cached = self._episodes and self._episodes['bookmarks'].get(str(media_id))
+        if cached is not None:
+            # cached rows are (season, resume_point, curr_time, resume_id, episode)
+            return [row[1:] for row in cached if row[0] == int(season)]
         return self.execute('SELECT resume_point, curr_time, resume_id, episode FROM progress WHERE db_type = ? AND media_id = ? AND season = ? AND profile = ?',
             ('episode', str(media_id), int(season), watch_history_profile_name())).fetchall()
 
@@ -438,6 +507,9 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
     def set_bookmark(self, media_type, media_id, curr_time, total_time, title='', season=None, episode=None):
         resume_point = round((float(curr_time) - 5) / float(total_time) * 100, 1)
         last_played = to_sql_timestamp(format_timestamp())
+        # a movie's empty season and episode never match in the unique key, so remove its old row first
+        self.execute('DELETE FROM progress WHERE db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?',
+            (media_type, media_id, season, episode, watch_history_profile_name()))
         self.execute('REPLACE INTO progress (db_type, media_id, season, episode, resume_point, curr_time, last_played, utc_offset, resume_id, title, profile) '
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (media_type, media_id, season, episode, str(resume_point), str(curr_time), last_played, utc_offset_label(), 0, title, watch_history_profile_name()))
@@ -455,6 +527,8 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         if action == 'mark_as_watched':
             last_played = to_sql_timestamp(last_played or format_timestamp())
+            # a movie's empty season and episode never match in the unique key, so remove its old row first
+            self.execute('DELETE FROM watched WHERE (db_type = ? and media_id = ? and season IS ? and episode IS ? and profile = ?)', (media_type, media_id, season, episode, profile_name))
             self.execute('REPLACE INTO watched (db_type, media_id, season, episode, last_played, utc_offset, title, profile) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                 (media_type, media_id, season, episode, last_played, utc_offset_label(), title, profile_name))
         elif action == 'mark_as_unwatched':
@@ -545,3 +619,73 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
                 for item in items
             ]
         )
+
+    def get_profiles(self):
+        """[{'profile', 'watched', 'in_progress', 'lists'}, ...]: the profiles that already have data in this database"""
+        rows = self.execute('''SELECT profile, SUM(watched), SUM(in_progress), SUM(lists) FROM (
+                SELECT profile, COUNT(*) AS watched, 0 AS in_progress, 0 AS lists FROM watched GROUP BY profile
+                UNION ALL SELECT profile, 0, COUNT(*), 0 FROM progress GROUP BY profile
+                UNION ALL SELECT profile, 0, 0, COUNT(*) FROM personal_lists GROUP BY profile
+            ) counts WHERE profile IS NOT NULL AND profile <> '' GROUP BY profile ORDER BY profile''').fetchall()
+        return [{'profile': p, 'watched': int(w), 'in_progress': int(i), 'lists': int(l)} for p, w, i, l in rows]
+
+    def _insert_missing(self, table_name, columns, rows):
+        """Insert the rows the table doesn't have yet. Rows with a season and episode are caught by the unique key (one
+        batched INSERT IGNORE); movies, whose empty season and episode the unique key doesn't match, are checked one by one.
+        Each row starts with db_type, media_id, season, episode and ends with profile."""
+        keyed = [row for row in rows if row[2] is not None and row[3] is not None]
+        keyless = [row for row in rows if row[2] is None or row[3] is None]
+        placeholders = ', '.join(['?'] * len(columns))
+        if keyed:
+            self.executemany('INSERT IGNORE INTO %s (%s) VALUES (%s)' % (table_name, ', '.join(columns), placeholders), keyed)
+        if keyless:
+            self.executemany('INSERT INTO %s (%s) SELECT %s FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM %s WHERE db_type = ? AND media_id = ? '
+                'AND season IS ? AND episode IS ? AND profile = ?)' % (table_name, ', '.join(columns), placeholders, table_name),
+                [row + row[:4] + row[-1:] for row in keyless])
+
+    def import_history(self, watched=(), progress=(), hidden=(), lists=(), callback=None):
+        """Copy history from another source into this profile, keeping entries it already has.
+        watched rows: (media_type, media_id, season, episode, last_played, title)
+        progress rows: (media_type, media_id, season, episode, resume_point, curr_time, last_played, resume_id, title)
+        lists: (name, sort_order, items). Returns what was added."""
+        profile, offset = watch_history_profile_name(), utc_offset_label()
+        def count(table_name):
+            return self.execute('SELECT COUNT(*) FROM %s WHERE profile = ?' % table_name, (profile,)).fetchone()[0]
+        before = {'watched': count('watched'), 'progress': count('progress'), 'list_items': count('personal_list_items')}
+        watched_columns = ('db_type', 'media_id', 'season', 'episode', 'last_played', 'utc_offset', 'title', 'profile')
+        progress_columns = ('db_type', 'media_id', 'season', 'episode', 'resume_point', 'curr_time', 'last_played', 'utc_offset', 'resume_id', 'title', 'profile')
+        watched = [(i[0], str(i[1]), i[2], i[3], to_sql_timestamp(i[4]), offset, i[5], profile) for i in watched]
+        progress = [(i[0], str(i[1]), i[2], i[3], str(i[4]), str(i[5]), to_sql_timestamp(i[6]), offset, i[7] or 0, i[8], profile) for i in progress]
+        existing = {row[0] for row in self.get_lists()} if lists else set()
+        jobs = [(self._insert_missing, ('watched', watched_columns, watched[n:n + 1000])) for n in range(0, len(watched), 1000)]
+        jobs += [(self._insert_missing, ('progress', progress_columns, progress[n:n + 1000])) for n in range(0, len(progress), 1000)]
+        for name, sort_order, items in lists:
+            if name not in existing: jobs.append((self.make_list, (name, sort_order)))
+            jobs += [(self.add_many_list_items, (name, items[n:n + 1000])) for n in range(0, len(items), 1000)]
+        added_hidden = 0
+        if hidden:
+            try: current_items = literal_eval(self.get_hidden_progress_items()) or []
+            except: current_items = []
+            new_items = [int(i) for i in dict.fromkeys(hidden) if int(i) not in current_items]
+            if new_items: jobs.append((self.execute, ('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items + new_items), profile))))
+            added_hidden = len(new_items)
+        for done, (function, args) in enumerate(jobs, 1):
+            function(*args)
+            if callback: callback(done, len(jobs))
+        return {'watched': count('watched') - before['watched'], 'progress': count('progress') - before['progress'], 'hidden': added_hidden,
+                'lists': len([i for i in lists if i[0] not in existing]), 'list_items': count('personal_list_items') - before['list_items']}
+
+
+def test_connection():
+    """(ok, message) about whether Fen Light can use the MariaDB database with the current settings"""
+    try:
+        conn = pymysql.connect(**dict(get_connection_config(), connect_timeout=5))
+        conn.close()
+    except Exception as exc:
+        return False, "Can't log in to MariaDB at [B]%s:%s[/B] as [B]%s[/B].[CR][CR]%s" % (
+            watch_history_server_ip(), watch_history_port(), watch_history_username(), exc)
+    profile = watch_history_profile_name()
+    try: known = [i['profile'] for i in MariaDBWatchedDatabase(connect).get_profiles()]
+    except Exception: known = []    # the tables don't exist yet: Fen Light creates them when it starts
+    detail = 'has history' if profile in known else 'has no history yet'
+    return True, 'Connected to database [B]%s[/B]. Profile [B]%s[/B] %s.' % (watch_history_database_name(), profile, detail)

@@ -554,11 +554,27 @@
                           <property name="setting_label">Profile Name</property>
                           <property name="setting_type">string</property>
                           <property name="setting_value">$INFO[Window(10000).Property(fenlight.watch_history.profile_name)]</property>
-                          <property name="setting_description">The profile name to associate with the saved watch-history entries</property>
-                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.set_string&amp;setting_id=watch_history.profile_name)</onclick>
+                          <property name="setting_description">The profile name to associate with the saved watch-history entries. Choose a profile that already has history in the database, or type a new one.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.choose_watch_history_profile&amp;setting_id=watch_history.profile_name)</onclick>
                       </item>
                       <item>
                           <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">Test Connection</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">Test</property>
+                          <property name="setting_description">Check that Fen Light can reach the database (or the API) with these settings, and that the API key, database and profile are right.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.test_watch_history_connection)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Fen Light) + !String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),Trakt)</visible>
+                          <property name="setting_label">Import Watch History</property>
+                          <property name="setting_type">action</property>
+                          <property name="setting_value">Import</property>
+                          <property name="setting_description">Copy the watch history Fen Light kept on this device, or its copy of your Trakt history, into this database and profile. Entries already there are kept.</property>
+                          <onclick>RunPlugin(plugin://plugin.video.fenlight/?mode=settings_manager.import_watch_history)</onclick>
+                      </item>
+                      <item>
+                          <visible>Container(2000).HasFocus(10) + String.IsEqual(Window(10000).Property(fenlight.watched_indicators_name),MariaDB)</visible>
                           <property name="setting_label">Reconfigure Database Tables</property>
                           <property name="setting_type">action</property>
                           <property name="setting_value">Reconfigure</property>

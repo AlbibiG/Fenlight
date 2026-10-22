@@ -30,7 +30,7 @@ apt-get update && apt-get install -y curl
 curl -fsSL https://raw.githubusercontent.com/AlbibiG/Fenlight/main/api/dist/fenlight-api-installer.sh | bash
 ```
 
-The installer asks for the MariaDB host, port, user and password, checks that it can log in, and generates an API key. At the end it prints the API's address and the key.
+The installer asks for the MariaDB host, port, user and password, checks that it can log in, and generates an API key named `default`. At the end it prints the API's address and the key.
 
 To install without prompts, for example from the Proxmox host with `pct exec <CTID> -- bash -c '...'`, pass the settings on the `bash` side of the pipe:
 
@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/AlbibiG/Fenlight/main/api/dist/fenl
 | `DB_HOST` | | MariaDB server address |
 | `DB_PORT` | `3306` | MariaDB port |
 | `FENLIGHT_DB_USER`, `FENLIGHT_DB_PASS` | | MariaDB login |
-| `API_SECRET_KEY` | generated | Key Kodi must send |
+| `API_SECRET_KEY` | generated | The API key named `default` |
 | `API_PORT` | `8000` | Port the API listens on |
 | `INSTALL_DIR` | `/opt/api` | Where the API is installed |
 | `SERVICE_NAME` | `fenlight-api` | Name of the systemd service |
@@ -63,16 +63,31 @@ To bring over the history you already have, press **Import Watch History**. It c
 
 If the API can't be reached, for example while its container restarts, Fen Light saves your changes and sends them once it's back.
 
+### API keys
+
+Give each Kodi device its own key, so you can lock one device out without changing the others. Manage them with `fenlight-api-keys` on the API's container or VM, as root:
+
+```bash
+fenlight-api-keys                                   # list every key with its name
+fenlight-api-keys add "Living Room"                 # add a key and print it
+fenlight-api-keys show "Living Room"                # print one key again
+fenlight-api-keys reset "Living Room"               # new key for that device; its old one stops working
+fenlight-api-keys rename "Living Room" "Lounge"
+fenlight-api-keys remove "Lounge"                   # that device is locked out
+```
+
+Enter each device's key as **API Key** in Fen Light on that device. Changes apply at once, without restarting the API. `add` and `reset` take an optional key of your own after the name. Installs from before named keys keep working: the installer moves their one key into the list as `default`.
+
 ### Updating, changing settings and removing
 
-- **Update:** run the install command again. It keeps your settings. After an update from an older version, the first request converts older tables so that lookups can use an index; with a long history this takes a few seconds, once.
+- **Update:** run the install command again. It keeps your settings. [api/CHANGELOG.md](api/CHANGELOG.md) lists what changed in each update. After an update from an older version, the first request converts older tables so that lookups can use an index; with a long history this takes a few seconds, once.
 - **Change settings:** add `--reconfigure`, as in `curl -fsSL <installer URL> | bash -s -- --reconfigure`. Or edit `/etc/fenlight-api/api.env` and run `systemctl restart fenlight-api`.
-- **New API key**, for example if the old one leaked: add `--new-key`, as in `curl -fsSL <installer URL> | bash -s -- --new-key`. The installer prints the new key, and the old one stops working right away, so update **API Key** in Fen Light on every device. To choose the key yourself, put `API_SECRET_KEY='your-key'` just before `bash`.
+- **New API key**, for example if one leaked: `fenlight-api-keys reset NAME` replaces that device's key (see [API keys](#api-keys)). The installer's `--new-key` option does the same for the key named `default`; to choose that key yourself, put `API_SECRET_KEY='your-key'` just before `bash`.
 - **Remove:**
 
   ```bash
   systemctl disable --now fenlight-api
-  rm -rf /opt/api /etc/fenlight-api /etc/systemd/system/fenlight-api.service /var/log/fenlight-api-install.log
+  rm -rf /opt/api /etc/fenlight-api /etc/systemd/system/fenlight-api.service /var/log/fenlight-api-install.log /usr/local/bin/fenlight-api-keys
   systemctl daemon-reload && userdel fenlight-api
   ```
 
@@ -84,13 +99,14 @@ If the API can't be reached, for example while its container restarts, Fen Light
 
 **Test Connection** in Fen Light's settings is the quickest check. What the status codes in the log mean:
 
-- **401**: the **API Key** in Fen Light doesn't match `API_SECRET_KEY` in `/etc/fenlight-api/api.env`.
+- **401**: the **API Key** in Fen Light doesn't match any key that `fenlight-api-keys` lists.
 - **404**: the database in Fen Light's **Database** setting doesn't exist, or the API's MariaDB user can't access it.
 - **503**: the API can't log in to MariaDB.
 
 ### Security
 
-- The API key gives access to every database the API's MariaDB user can use, so give the API a dedicated user like the one above rather than `root`.
+- Every API key gives access to every database the API's MariaDB user can use, so give the API a dedicated user like the one above rather than `root`.
+- The keys are kept in `/etc/fenlight-api/keys.json`, readable only by root and the API's service user. Remove a device's key when you stop using that device.
 - The API uses plain HTTP. That's fine on a home network; if it's reachable from the internet, put an HTTPS reverse proxy such as Caddy or nginx in front of it.
 
 ## Releasing

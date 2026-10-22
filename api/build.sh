@@ -5,7 +5,8 @@
 # Usage on a Debian/Ubuntu LXC container or VM (as root), see the README for details:
 #   curl -fsSL https://raw.githubusercontent.com/AlbibiG/Fenlight/main/api/dist/fenlight-api-installer.sh | bash
 #   ... | bash -s -- --reconfigure                                    # change the settings later
-#   ... | bash -s -- --new-key                                        # replace the API key
+#   ... | bash -s -- --new-key                                        # replace the API key named "default"
+#   fenlight-api-keys                                                 # afterwards: view the keys, add one per device
 #   ... | DB_HOST=... FENLIGHT_DB_USER=... FENLIGHT_DB_PASS=... bash   # no prompts
 set -euo pipefail
 

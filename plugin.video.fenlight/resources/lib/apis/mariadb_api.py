@@ -277,6 +277,9 @@ class WatchHistoryClient:
         }
         return self._write("hidden/progress/update", payload)
 
+    def hide_progress_items(self, media_ids):
+        return self._write("hidden/progress/drop-many", {"media_ids": [int(i) for i in media_ids], "profile": self.profile})
+
     # --- Bookmarks & Progress ---
     def get_bookmarks_movie(self):
         return self._request("bookmarks/movies/info", {"profile": self.profile})
@@ -327,6 +330,9 @@ class WatchHistoryClient:
             "profile": self.profile
         }
         return self._write("bookmarks/batch-erase", payload)
+
+    def clear_all_bookmarks(self, media_type):
+        return self._write("bookmarks/clear", {"media_type": media_type, "profile": self.profile})
 
     # --- Watch Status Management ---
     def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title="", last_played=None):

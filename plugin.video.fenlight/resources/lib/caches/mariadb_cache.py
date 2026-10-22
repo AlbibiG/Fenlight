@@ -484,6 +484,15 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         elif media_id in current_items: current_items.remove(media_id)
         self.execute('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items), watch_history_profile_name()))
 
+    def hide_progress_items(self, media_ids):
+        """Hide many shows from the progress lists at once; returns how many weren't hidden yet"""
+        try: current_items = literal_eval(self.get_hidden_progress_items()) or []
+        except: current_items = []
+        new_items = [int(i) for i in dict.fromkeys(media_ids) if int(i) not in current_items]
+        if new_items:
+            self.execute('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items + new_items), watch_history_profile_name()))
+        return len(new_items)
+
     def get_bookmarks_movie(self):
         return self.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ? and profile = ?',
             ('movie', watch_history_profile_name())).fetchall()
@@ -522,6 +531,9 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         profile_name = watch_history_profile_name()
         self.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ? and profile = ?',
             [item + (profile_name,) for item in insert_list])
+
+    def clear_all_bookmarks(self, media_type):
+        self.execute('DELETE FROM progress WHERE db_type = ? AND profile = ?', (media_type, watch_history_profile_name()))
 
     def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
         profile_name = watch_history_profile_name()
@@ -662,13 +674,7 @@ class MariaDBWatchedDatabase(SQLDatabaseWrapper):
         for name, sort_order, items in lists:
             if name not in existing: jobs.append((self.make_list, (name, sort_order)))
             jobs += [(self.add_many_list_items, (name, items[n:n + 1000])) for n in range(0, len(items), 1000)]
-        added_hidden = 0
-        if hidden:
-            try: current_items = literal_eval(self.get_hidden_progress_items()) or []
-            except: current_items = []
-            new_items = [int(i) for i in dict.fromkeys(hidden) if int(i) not in current_items]
-            if new_items: jobs.append((self.execute, ('REPLACE INTO watched_status VALUES (?, ?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items + new_items), profile))))
-            added_hidden = len(new_items)
+        added_hidden = self.hide_progress_items(hidden) if hidden else 0
         for done, (function, args) in enumerate(jobs, 1):
             function(*args)
             if callback: callback(done, len(jobs))

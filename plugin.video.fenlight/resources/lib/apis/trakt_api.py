@@ -446,6 +446,11 @@ def hide_unhide_progress_items(params):
 	trakt_sync_activities()
 	kodi_utils.kodi_refresh()
 
+def drop_progress_shows(media_ids):
+	"""Drop many shows from Trakt's progress in one call"""
+	call_trakt('users/hidden/dropped', data={'shows': [{'ids': {'tmdb': int(i)}} for i in media_ids]})
+	trakt_sync_activities()
+
 def trakt_search_lists(search_title, page_no):
 	def _process(dummy_arg):
 		return call_trakt('search', params={'type': 'list', 'fields': 'name,description', 'query': search_title, 'limit': 50}, pagination=True, page_no=page_no)

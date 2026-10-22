@@ -246,6 +246,9 @@ def build_single_episode(list_type, params={}):
 					cm_append(['mark_watched', ('[B]Clear Progress[/B]', 'RunPlugin(%s)' % \
 								build_url({'mode': 'watched_status.erase_bookmark', 'media_type': 'episode', 'tmdb_id': tmdb_id,
 											'season': season, 'episode': episode, 'refresh': 'true'}))])
+				if list_type_compare == 'progress':
+					cm_append(['mark_watched', ('[B]Clear Progress for All Episodes[/B]', 'RunPlugin(%s)' % \
+								build_url({'mode': 'watched_status.clear_all_progress', 'media_type': 'episode'}))])
 				if unwatched_info:
 					total_aired_eps = meta_get('total_aired_eps')
 					total_unwatched = ws.get_watched_status_tvshow(tvshow_watched_info.get(str(tmdb_id), None), total_aired_eps)[2]

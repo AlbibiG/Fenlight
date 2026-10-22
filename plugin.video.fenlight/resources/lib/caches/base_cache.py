@@ -401,6 +401,13 @@ class WatchedSQLiteConnection(database.Connection):
 		elif media_id in current_items: current_items.remove(media_id)
 		self.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items)))
 
+	def hide_progress_items(self, media_ids):
+		try: current_items = literal_eval(self.get_hidden_progress_items()) or []
+		except: current_items = []
+		new_items = [int(i) for i in dict.fromkeys(media_ids) if int(i) not in current_items]
+		if new_items: self.execute('INSERT OR REPLACE INTO watched_status VALUES (?, ?, ?)', ('hidden_progress_items', 'hidden', repr(current_items + new_items)))
+		return len(new_items)
+
 	def get_bookmarks_movie(self):
 		return self.execute('SELECT media_id, resume_point, curr_time, resume_id FROM progress WHERE db_type = ?', ('movie',)).fetchall()
 
@@ -427,6 +434,13 @@ class WatchedSQLiteConnection(database.Connection):
 
 	def batch_erase_bookmark(self, insert_list, action=None):
 		self.executemany('DELETE FROM progress where db_type = ? and media_id = ? and season = ? and episode = ?', insert_list)
+
+	def clear_all_bookmarks(self, media_type):
+		self.execute('DELETE FROM progress WHERE db_type = ?', (media_type,))
+
+	def get_resume_ids(self, media_type):
+		"""Trakt's playback IDs for every resume point of this type (Trakt mode keeps them in its cache)"""
+		return [i[0] for i in self.execute('SELECT resume_id FROM progress WHERE db_type = ?', (media_type,)).fetchall()]
 
 	def watched_status_mark(self, media_type, media_id, action, season=None, episode=None, title='', last_played=None):
 		if action == 'mark_as_watched':

@@ -4,7 +4,7 @@ from time import monotonic
 from apis.trakt_api import trakt_watched_status_mark, trakt_official_status, trakt_progress, trakt_get_hidden_items
 from caches.base_cache import connect_database, database
 from caches.trakt_cache import clear_trakt_collection_watchlist_data
-from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh, logger
+from modules.kodi_utils import kodi_progress_background, sleep, get_video_database_path, notification, kodi_refresh, logger, confirm_dialog
 from modules.utils import get_datetime, format_timestamp, adjust_premiered_date, sort_for_article, make_thread_list
 from modules import metadata, settings
 
@@ -351,6 +351,43 @@ def batch_erase_bookmark(watched_indicators, insert_list, action):
 		watched_db.batch_erase_bookmark(modified_list, action)
 	except Exception as e:
 		logger('batch_erase_bookmark', severity='medium', error_message=str(e))
+
+def clear_all_progress(params):
+	"""From the In Progress lists' context menu: clear the resume point of every movie or every episode,
+	or drop every show in progress (its watched episodes are kept)"""
+	try:
+		media_type, watched_indicators = params.get('media_type'), settings.watched_indicators()
+		if media_type == 'tvshow':
+			media_ids = [int(i['media_id']) for i in get_in_progress_tvshows(None, None)]
+			if not media_ids: return notification('No shows in progress')
+			if not confirm_dialog(heading='Clear Progress', ok_label='Drop All', cancel_label='Cancel', default_control=11,
+					text='Drop all %d shows in progress from your progress lists?[CR]Their watched episodes are kept, and the TV Shows Progress Manager can bring a show back.' % len(media_ids)):
+				return
+			if watched_indicators == 1:
+				from apis.trakt_api import drop_progress_shows
+				drop_progress_shows(media_ids)
+			else: get_database(watched_indicators).hide_progress_items(media_ids)
+		else:
+			label = {'movie': 'movies', 'episode': 'episodes'}[media_type]
+			count = len(get_in_progress_movies(None, None) if media_type == 'movie' else get_in_progress_episodes())
+			if not count: return notification('No %s in progress' % label)
+			if not confirm_dialog(heading='Clear Progress', text='Clear the progress of all %d %s?' % (count, label), ok_label='Clear All', cancel_label='Cancel', default_control=11):
+				return
+			watched_db = get_database(watched_indicators)
+			if watched_indicators == 1:
+				resume_ids = watched_db.get_resume_ids(media_type)
+				def _clear_trakt():
+					for resume_id in resume_ids:
+						try:
+							trakt_progress('clear_progress', media_type, None, 0, resume_id=resume_id)
+							sleep(1000)
+						except Exception as e:
+							logger('clear_all_progress', severity='medium', error_message=str(e))
+				Thread(target=_clear_trakt).start()
+			watched_db.clear_all_bookmarks(media_type)
+		kodi_refresh()
+	except Exception as e:
+		logger('clear_all_progress', severity='medium', error_message=str(e))
 
 def set_bookmark(params):
 	try:

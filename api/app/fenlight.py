@@ -604,6 +604,29 @@ def _hidden_items(cursor, profile):
         except (ValueError, SyntaxError):
             return []
 
+def _add_hidden_items(cursor, profile, media_ids):
+    """Add shows to the profile's hidden list; returns how many weren't on it yet"""
+    current_items = _hidden_items(cursor, profile)
+    new_items = [i for i in dict.fromkeys(media_ids) if i not in current_items]
+    if new_items:
+        cursor.execute(
+            'REPLACE INTO watched_status VALUES (%s, %s, %s, %s)',
+            ('hidden_progress_items', 'hidden', json.dumps(current_items + new_items), profile)
+        )
+    return len(new_items)
+
+class DropManyRequest(BaseModel):
+    media_ids: list[int]
+    profile: Optional[str] = None
+
+@router.post("/api/hidden/progress/drop-many")
+def drop_progress_items(data: DropManyRequest, db = Depends(get_db)):
+    """Hide many shows from the progress lists at once, such as everything in In Progress TV Shows"""
+    conn, cursor = db
+    added = _add_hidden_items(cursor, data.profile, data.media_ids)
+    conn.commit()
+    return {"status": "success", "added": added}
+
 @router.post("/api/hidden/progress/update")
 def update_hidden_progress_items(data: HideProgressRequest, db = Depends(get_db)):
     conn, cursor = db
@@ -718,6 +741,19 @@ def batch_erase_bookmark(data: BatchEraseBookmarkRequest, db = Depends(get_db)):
         )
     conn.commit()
     return {"status": "success"}
+
+class ClearBookmarksRequest(BaseModel):
+    media_type: str
+    profile: Optional[str] = None
+
+@router.post("/api/bookmarks/clear")
+def clear_bookmarks(data: ClearBookmarksRequest, db = Depends(get_db)):
+    """Remove the resume point of every movie, or of every episode, in the profile"""
+    conn, cursor = db
+    cursor.execute('DELETE FROM progress WHERE db_type = %s AND profile <=> %s', (data.media_type, data.profile))
+    cleared = cursor.rowcount
+    conn.commit()
+    return {"status": "success", "cleared": cleared}
 
 @router.post("/api/bookmarks/set")
 def set_bookmark(data: SetBookmarkRequest, db = Depends(get_db)):
@@ -1171,13 +1207,6 @@ def import_history(data: ImportRequest, db = Depends(get_db)):
              for media_type, media_id, season, episode, resume_point, curr_time, last_played, resume_id, title in (row[:9] for row in data.progress)]
         )
     if data.hidden:
-        current_items = _hidden_items(cursor, data.profile)
-        new_items = [i for i in dict.fromkeys(data.hidden) if i not in current_items]
-        if new_items:
-            cursor.execute(
-                'REPLACE INTO watched_status VALUES (%s, %s, %s, %s)',
-                ('hidden_progress_items', 'hidden', json.dumps(current_items + new_items), data.profile)
-            )
-        added['hidden'] = len(new_items)
+        added['hidden'] = _add_hidden_items(cursor, data.profile, data.hidden)
     conn.commit()
     return added

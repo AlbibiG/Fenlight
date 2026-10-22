@@ -192,6 +192,9 @@ class Movies:
 			if progress:
 				cm_append(['mark_watched', ('[B]Clear Progress[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'watched_status.erase_bookmark', 'media_type': 'movie',
 											'tmdb_id': tmdb_id, 'refresh': 'true'}))])
+			if self.action == 'in_progress_movies':
+				cm_append(['mark_watched', ('[B]Clear Progress for All Movies[/B]', 'RunPlugin(%s)' % \
+							self.build_url({'mode': 'watched_status.clear_all_progress', 'media_type': 'movie'}))])
 			if not self.is_external: cm_append(['exit', ('[B]Exit Movie List[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'navigator.exit_media_menu'}))])
 			if self.is_external:
 				cm.extend([['refresh', ('[B]Refresh Widgets[/B]', 'RunPlugin(%s)' % self.build_url({'mode': 'refresh_widgets'}))],
